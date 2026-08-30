@@ -1,0 +1,113 @@
+import { Link } from "react-router-dom";
+import { useAppStore } from "../lib/store";
+import {
+  computeBadges,
+  computeEnvelopeProgress,
+  computeHealthScore,
+  computeLiquidBalance,
+  computeMoneyWeather,
+  computeNetWorth,
+  computeNetWorthHistory,
+  computeUnderBudgetStreak,
+  lastNMonthKeys,
+  monthKey,
+  summarizeMonth,
+} from "../lib/calculations";
+import { formatCurrency, formatPercent } from "../lib/format";
+import { MoneyWeatherCard } from "../components/dashboard/MoneyWeatherCard";
+import { HealthScoreGauge } from "../components/dashboard/HealthScoreGauge";
+import { NetWorthChart } from "../components/dashboard/NetWorthChart";
+import { EnvelopeMiniList } from "../components/dashboard/EnvelopeMiniList";
+import { RecentTransactions } from "../components/dashboard/RecentTransactions";
+import { StatTile } from "../components/dashboard/StatTile";
+import { BadgeStrip } from "../components/dashboard/BadgeStrip";
+import { GoalCard } from "../components/goals/GoalCard";
+
+export function DashboardPage() {
+  const transactions = useAppStore((s) => s.transactions);
+  const envelopes = useAppStore((s) => s.envelopes);
+  const accounts = useAppStore((s) => s.accounts);
+  const goals = useAppStore((s) => s.goals);
+  const canceledSubscriptions = useAppStore((s) => s.canceledSubscriptions);
+
+  const months = lastNMonthKeys(6);
+  const currentMonth = monthKey(new Date());
+  const prevMonth = months[months.length - 2] ?? currentMonth;
+
+  const summary = summarizeMonth(transactions, currentMonth);
+  const prevSummary = summarizeMonth(transactions, prevMonth);
+  const envelopeProgress = computeEnvelopeProgress(envelopes, transactions, currentMonth);
+  const netWorth = computeNetWorth(accounts);
+  const liquidBalance = computeLiquidBalance(accounts);
+  const history = computeNetWorthHistory(accounts, transactions, months);
+  const changePct = history[0]?.value ? (netWorth - history[0].value) / Math.abs(history[0].value) : null;
+
+  const monthlyExpenseBaseline = months.slice(0, -1).reduce((s, m) => s + summarizeMonth(transactions, m).expenses, 0) / Math.max(months.length - 1, 1);
+  const debtBalance = accounts.filter((a) => a.type === "credit" && a.balance < 0).reduce((s, a) => s + -a.balance, 0);
+
+  const health = computeHealthScore({
+    income: summary.income,
+    expenses: summary.expenses,
+    envelopeProgress,
+    liquidBalance,
+    monthlyExpenseBaseline,
+    debtBalance,
+  });
+
+  const streak = computeUnderBudgetStreak(transactions, envelopes);
+  const recentGoalComplete = goals.some((g) => g.saved >= g.target);
+  const weather = computeMoneyWeather({
+    score: health.score,
+    netThisMonth: summary.net,
+    emergencyFundMonths: health.emergencyFundMonths,
+    streakDays: streak,
+    goalCompletedRecently: recentGoalComplete,
+  });
+
+  const badges = computeBadges({ streak, healthScore: health.score, goals, subscriptionsCanceled: canceledSubscriptions.length });
+
+  const incomeTrend = prevSummary.income > 0 ? (summary.income - prevSummary.income) / prevSummary.income : 0;
+  const expenseTrend = prevSummary.expenses > 0 ? (summary.expenses - prevSummary.expenses) / prevSummary.expenses : 0;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <StatTile label="Income this month" value={formatCurrency(summary.income)} icon="↓" accent="var(--green)" trend={{ value: formatPercent(Math.abs(incomeTrend)), positive: incomeTrend >= 0 }} delay={0} />
+        <StatTile label="Spent this month" value={formatCurrency(summary.expenses)} icon="↑" accent="var(--red)" trend={{ value: formatPercent(Math.abs(expenseTrend)), positive: expenseTrend <= 0 }} delay={0.05} />
+        <StatTile label="Savings rate" value={formatPercent(health.savingsRate)} icon="●" accent="var(--violet)" trend={null} delay={0.1} />
+        <StatTile label="Emergency runway" value={`${health.emergencyFundMonths.toFixed(1)} mo`} icon="☂" accent="var(--teal)" trend={null} delay={0.15} />
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <MoneyWeatherCard weather={weather} />
+          <NetWorthChart history={history} netWorth={netWorth} changePct={changePct} />
+          <RecentTransactions transactions={transactions} />
+        </div>
+        <div className="space-y-6">
+          <HealthScoreGauge breakdown={health} />
+          <EnvelopeMiniList envelopes={envelopeProgress} />
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <BadgeStrip badges={badges} />
+        </div>
+        <div className="card p-5 flex flex-col">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-display font-semibold text-[15px]">Goals in motion</h3>
+            <Link to="/app/goals" className="text-xs font-medium text-[var(--violet)] hover:underline">
+              View all →
+            </Link>
+          </div>
+          <div className="space-y-3">
+            {goals.slice(0, 2).map((g) => (
+              <GoalCard key={g.id} goal={g} compact />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
