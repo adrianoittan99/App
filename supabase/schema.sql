@@ -140,3 +140,17 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- ---------------------------------------------------------------------------
+-- Grants: RLS policies above decide which ROWS a query can touch, but
+-- Postgres still requires a baseline table-level grant before it evaluates
+-- RLS at all. The Supabase dashboard adds this automatically when you
+-- create a table through the Table Editor with "Automatically expose new
+-- tables" on; since these tables were created via SQL (and that setting is
+-- best left off for security), grant it explicitly here instead.
+-- ---------------------------------------------------------------------------
+grant usage on schema public to authenticated;
+
+grant select, insert, update, delete
+  on public.profiles, public.accounts, public.transactions, public.envelopes, public.goals, public.canceled_subscriptions
+  to authenticated;
