@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAppStore } from "../lib/store";
+import { useAuth } from "../lib/authContext";
 import { formatCurrency } from "../lib/format";
 import { Button } from "../components/ui/Button";
 import { Card, CardHeader } from "../components/ui/Card";
@@ -15,7 +17,10 @@ export function SettingsPage() {
   const theme = useAppStore((s) => s.theme);
   const setTheme = useAppStore((s) => s.setTheme);
   const accounts = useAppStore((s) => s.accounts);
+  const remoteMode = useAppStore((s) => s.remoteMode);
   const resetDemoData = useAppStore((s) => s.resetDemoData);
+  const { session, signOut } = useAuth();
+  const navigate = useNavigate();
   const [confirmReset, setConfirmReset] = useState(false);
 
   function handleExport() {
@@ -34,12 +39,32 @@ export function SettingsPage() {
     URL.revokeObjectURL(url);
   }
 
+  async function handleSignOut() {
+    await signOut();
+    navigate("/");
+  }
+
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
         <h1 className="font-display font-bold text-2xl">Settings</h1>
         <p className="text-sm text-[var(--text-muted)] mt-1">Appearance, accounts, and your data.</p>
       </div>
+
+      {remoteMode && session && (
+        <Card>
+          <CardHeader title="Account" subtitle="Signed in — your data syncs to your Aurora account" />
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">{session.user.email}</p>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">Synced across devices, saved in the cloud</p>
+            </div>
+            <Button variant="danger" size="sm" onClick={handleSignOut}>
+              Sign out
+            </Button>
+          </div>
+        </Card>
+      )}
 
       <Card>
         <CardHeader title="Appearance" subtitle="Aurora adapts to how you like to work" />
@@ -75,25 +100,29 @@ export function SettingsPage() {
       </Card>
 
       <Card>
-        <CardHeader title="Your data" subtitle="Aurora stores everything locally in this browser — nothing leaves your device" />
+        <CardHeader
+          title="Your data"
+          subtitle={remoteMode ? "Saved to your Aurora account — nothing here is a demo anymore" : "This is demo data, stored only in this browser — nothing leaves your device"}
+        />
         <div className="flex flex-wrap gap-3">
           <Button variant="secondary" onClick={handleExport}>
             Export as JSON
           </Button>
-          {confirmReset ? (
-            <div className="flex items-center gap-2">
-              <Button variant="danger" onClick={() => { resetDemoData(); setConfirmReset(false); }}>
-                Confirm reset
+          {!remoteMode &&
+            (confirmReset ? (
+              <div className="flex items-center gap-2">
+                <Button variant="danger" onClick={() => { resetDemoData(); setConfirmReset(false); }}>
+                  Confirm reset
+                </Button>
+                <Button variant="ghost" onClick={() => setConfirmReset(false)}>
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <Button variant="secondary" onClick={() => setConfirmReset(true)}>
+                Reset demo data
               </Button>
-              <Button variant="ghost" onClick={() => setConfirmReset(false)}>
-                Cancel
-              </Button>
-            </div>
-          ) : (
-            <Button variant="secondary" onClick={() => setConfirmReset(true)}>
-              Reset demo data
-            </Button>
-          )}
+            ))}
         </div>
       </Card>
     </div>

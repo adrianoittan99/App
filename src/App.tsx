@@ -1,8 +1,10 @@
 import { Suspense, lazy } from "react";
 import { Route, Routes } from "react-router-dom";
-import { AppShell } from "./components/layout/AppShell";
+import { AppGate } from "./components/auth/AppGate";
 
 const LandingPage = lazy(() => import("./pages/LandingPage").then((m) => ({ default: m.LandingPage })));
+const AuthPage = lazy(() => import("./pages/AuthPage").then((m) => ({ default: m.AuthPage })));
+const OnboardingPage = lazy(() => import("./pages/OnboardingPage").then((m) => ({ default: m.OnboardingPage })));
 const DashboardPage = lazy(() => import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
 const TransactionsPage = lazy(() => import("./pages/TransactionsPage").then((m) => ({ default: m.TransactionsPage })));
 const BudgetsPage = lazy(() => import("./pages/BudgetsPage").then((m) => ({ default: m.BudgetsPage })));
@@ -23,7 +25,9 @@ export default function App() {
     <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/app" element={<AppShell />}>
+        <Route path="/login" element={<AuthPage />} />
+        <Route path="/onboarding" element={<OnboardingPage />} />
+        <Route path="/app" element={<AppGate />}>
           <Route index element={<DashboardPage />} />
           <Route path="transactions" element={<TransactionsPage />} />
           <Route path="budgets" element={<BudgetsPage />} />

@@ -41,6 +41,9 @@ export function MarketingNav() {
           <button onClick={toggleTheme} className="w-9 h-9 rounded-full hidden sm:flex items-center justify-center bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-colors text-sm" aria-label="Toggle theme">
             {theme === "dark" ? "☀" : "☾"}
           </button>
+          <Link to="/login" className="hidden sm:inline text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">
+            Sign in
+          </Link>
           <Link to="/app">
             <Button size="sm">Launch demo</Button>
           </Link>
@@ -56,6 +59,9 @@ export function MarketingNav() {
               {l.label}
             </a>
           ))}
+          <Link to="/login" onClick={() => setMenuOpen(false)} className="text-sm font-medium text-[var(--text-muted)]">
+            Sign in
+          </Link>
         </nav>
       )}
     </header>

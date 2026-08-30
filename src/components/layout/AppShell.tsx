@@ -1,7 +1,8 @@
-import { NavLink, Outlet, Link } from "react-router-dom";
+import { NavLink, Outlet, Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { useAppStore } from "../../lib/store";
+import { useAuth } from "../../lib/authContext";
 import { computeUnderBudgetStreak } from "../../lib/calculations";
 import { AddTransactionModal } from "../transactions/AddTransactionModal";
 import { Button } from "../ui/Button";
@@ -20,8 +21,16 @@ export function AppShell() {
   const toggleTheme = useAppStore((s) => s.toggleTheme);
   const transactions = useAppStore((s) => s.transactions);
   const envelopes = useAppStore((s) => s.envelopes);
+  const remoteMode = useAppStore((s) => s.remoteMode);
+  const { session, signOut } = useAuth();
+  const navigate = useNavigate();
   const [addOpen, setAddOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  async function handleSignOut() {
+    await signOut();
+    navigate("/");
+  }
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -71,6 +80,25 @@ export function AppShell() {
               {theme === "dark" ? "☀" : "☾"}
             </button>
           </div>
+
+          {remoteMode && session ? (
+            <div className="flex items-center justify-between gap-2 px-1">
+              <span className="text-xs text-[var(--text-muted)] truncate" title={session.user.email ?? undefined}>
+                {session.user.email}
+              </span>
+              <button onClick={handleSignOut} className="text-xs font-medium text-[var(--red)] hover:underline shrink-0">
+                Sign out
+              </button>
+            </div>
+          ) : (
+            <Link
+              to="/login"
+              className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-[var(--surface-2)] text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+            >
+              <span>Demo mode — data isn't saved</span>
+              <span className="text-[var(--violet)]">Sign up →</span>
+            </Link>
+          )}
         </div>
       </aside>
 

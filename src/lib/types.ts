@@ -83,3 +83,14 @@ export interface MoneyWeather {
   detail: string;
   temperature: number; // stylized "financial temperature" -20..40
 }
+
+// Payload used to replace the store's local/demo data with a signed-in
+// user's real data fetched from Supabase.
+export interface RemoteHydratePayload {
+  transactions: Transaction[];
+  accounts: Account[];
+  envelopes: Envelope[];
+  goals: Goal[];
+  canceledSubscriptions: string[];
+  theme?: ThemeMode;
+}
