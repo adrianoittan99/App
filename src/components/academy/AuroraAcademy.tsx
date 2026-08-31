@@ -27,6 +27,20 @@ const LESSONS: Lesson[] = [
     illustration: <WelcomeArt />,
   },
   {
+    id: "recurring",
+    eyebrow: "Recurring",
+    title: "Stop re-typing your rent every month",
+    body: (
+      <>
+        Set up anything predictable — rent, payroll, a subscription — once. Aurora never logs it for you automatically;
+        instead it surfaces what's due each month and you confirm with one tap. The rest of your effort goes where it
+        actually matters: the spending you didn't plan for.
+      </>
+    ),
+    illustration: <RecurringArt />,
+    action: { label: "Try it — open Recurring →", to: "/app/recurring" },
+  },
+  {
     id: "score",
     eyebrow: "Financial Wellness Score",
     title: "A credit score for your habits",
@@ -278,6 +292,30 @@ export function AuroraAcademy({ open, onClose }: { open: boolean; onClose: () =>
 // ---------------------------------------------------------------------------
 // Illustrations — small, code-only animated visuals, no external assets.
 // ---------------------------------------------------------------------------
+
+function RecurringArt() {
+  return (
+    <div className="relative w-16 h-16 flex items-center justify-center">
+      <motion.svg
+        width="56"
+        height="56"
+        viewBox="0 0 56 56"
+        animate={{ rotate: 360 }}
+        transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+      >
+        <circle cx="28" cy="28" r="20" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeDasharray="80 46" opacity="0.9" />
+      </motion.svg>
+      <motion.span
+        className="absolute text-lg"
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ duration: 0.4, delay: 0.5, ease: [0.34, 1.56, 0.64, 1] as const }}
+      >
+        ✓
+      </motion.span>
+    </div>
+  );
+}
 
 function WelcomeArt() {
   return (

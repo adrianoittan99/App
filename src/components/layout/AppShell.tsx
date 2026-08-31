@@ -3,15 +3,18 @@ import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { useAppStore } from "../../lib/store";
 import { useAuth } from "../../lib/authContext";
-import { computeUnderBudgetStreak } from "../../lib/calculations";
+import { computeDueRecurring, computeUnderBudgetStreak } from "../../lib/calculations";
+import { greeting } from "../../lib/format";
 import { AddTransactionModal } from "../transactions/AddTransactionModal";
 import { AuroraAcademy } from "../academy/AuroraAcademy";
+import { SplashIntro } from "../splash/SplashIntro";
 import { ToastHost } from "../ui/ToastHost";
 import { Button } from "../ui/Button";
 
 const NAV_ITEMS = [
   { to: "/app", label: "Dashboard", icon: "◧", end: true },
   { to: "/app/transactions", label: "Transactions", icon: "☰", end: false },
+  { to: "/app/recurring", label: "Recurring", icon: "↻", end: false },
   { to: "/app/balances", label: "Balances", icon: "◈", end: false },
   { to: "/app/budgets", label: "Envelopes", icon: "▤", end: false },
   { to: "/app/goals", label: "Goals", icon: "◎", end: false },
@@ -24,7 +27,9 @@ export function AppShell() {
   const toggleTheme = useAppStore((s) => s.toggleTheme);
   const transactions = useAppStore((s) => s.transactions);
   const envelopes = useAppStore((s) => s.envelopes);
+  const recurringTransactions = useAppStore((s) => s.recurringTransactions);
   const remoteMode = useAppStore((s) => s.remoteMode);
+  const displayName = useAppStore((s) => s.displayName);
   const addOpen = useAppStore((s) => s.addTransactionModalOpen);
   const openAdd = useAppStore((s) => s.openAddTransactionModal);
   const closeAdd = useAppStore((s) => s.closeAddTransactionModal);
@@ -35,10 +40,11 @@ export function AppShell() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [academyOpen, setAcademyOpen] = useState(false);
 
-  useEffect(() => {
+  // The tutorial waits for the splash to be fully gone before it opens, so
+  // the two never overlap on a brand-new visit — see SplashIntro's onDone.
+  function handleSplashDone() {
     if (!hasSeenIntro) setAcademyOpen(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }
 
   function closeAcademy() {
     setAcademyOpen(false);
@@ -55,6 +61,8 @@ export function AppShell() {
   }, [theme]);
 
   const streak = computeUnderBudgetStreak(transactions, envelopes);
+  const dueRecurringCount = computeDueRecurring(recurringTransactions, transactions).length;
+  const firstName = displayName?.trim().split(" ")[0] || session?.user.email?.split("@")[0];
 
   return (
     <div className="min-h-screen flex" style={{ background: "var(--bg)" }}>
@@ -80,6 +88,11 @@ export function AppShell() {
             >
               <span className="w-5 text-center opacity-80">{item.icon}</span>
               {item.label}
+              {item.to === "/app/recurring" && dueRecurringCount > 0 && (
+                <span className="ml-auto text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center bg-[var(--amber)] text-black">
+                  {dueRecurringCount}
+                </span>
+              )}
             </NavLink>
           ))}
           <button
@@ -180,7 +193,7 @@ export function AppShell() {
       <div className="flex-1 min-w-0">
         <header className="hidden lg:flex items-center justify-between px-8 py-5 border-b border-[var(--border)] sticky top-0 z-30 glass">
           <div>
-            <p className="text-xs text-[var(--text-muted)]">Welcome back</p>
+            <p className="text-xs text-[var(--text-muted)]">{greeting()}{firstName ? `, ${firstName}` : ""}</p>
             <p className="font-display font-semibold text-lg">Let's see where your money stands.</p>
           </div>
           <Button size="md" onClick={() => openAdd()} icon={<span className="text-base leading-none">+</span>}>
@@ -205,6 +218,7 @@ export function AppShell() {
       <AddTransactionModal open={addOpen} onClose={closeAdd} />
       <AuroraAcademy open={academyOpen} onClose={closeAcademy} />
       <ToastHost />
+      <SplashIntro onDone={handleSplashDone} />
     </div>
   );
 }

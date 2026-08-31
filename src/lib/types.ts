@@ -37,6 +37,18 @@ export interface Envelope {
   monthlyLimit: number;
 }
 
+/** A predictable transaction (rent, a subscription, payroll) the user
+ * defines once — Aurora then surfaces it as "due" each month instead of
+ * making them re-type it, without ever logging it silently on its own. */
+export interface RecurringTransaction {
+  id: string;
+  merchant: string;
+  category: CategoryId;
+  amount: number; // negative = expense, positive = income
+  account: string;
+  dayOfMonth: number; // 1-31
+}
+
 export interface Goal {
   id: string;
   name: string;
@@ -97,5 +109,7 @@ export interface RemoteHydratePayload {
   envelopes: Envelope[];
   goals: Goal[];
   canceledSubscriptions: string[];
+  recurringTransactions: RecurringTransaction[];
   theme?: ThemeMode;
+  displayName?: string;
 }

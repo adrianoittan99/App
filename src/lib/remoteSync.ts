@@ -1,6 +1,6 @@
 import { supabase } from "./supabaseClient";
 import { useAppStore } from "./store";
-import type { Account, CategoryId, Envelope, Goal, ThemeMode, Transaction } from "./types";
+import type { Account, CategoryId, Envelope, Goal, RecurringTransaction, ThemeMode, Transaction } from "./types";
 import { EXPENSE_CATEGORIES } from "./categories";
 
 export async function fetchOnboardingStatus(userId: string): Promise<boolean> {
@@ -14,13 +14,14 @@ export async function fetchOnboardingStatus(userId: string): Promise<boolean> {
 
 /** Fetches everything for a signed-in user and replaces the store's data with it. */
 export async function hydrateStoreFromSupabase(userId: string): Promise<void> {
-  const [accountsRes, envelopesRes, goalsRes, transactionsRes, canceledRes, profileRes] = await Promise.all([
+  const [accountsRes, envelopesRes, goalsRes, transactionsRes, canceledRes, recurringRes, profileRes] = await Promise.all([
     supabase.from("accounts").select("*").eq("user_id", userId),
     supabase.from("envelopes").select("*").eq("user_id", userId),
     supabase.from("goals").select("*").eq("user_id", userId),
     supabase.from("transactions").select("*").eq("user_id", userId).order("date", { ascending: false }),
     supabase.from("canceled_subscriptions").select("merchant_key").eq("user_id", userId),
-    supabase.from("profiles").select("theme").eq("id", userId).single(),
+    supabase.from("recurring_transactions").select("*").eq("user_id", userId),
+    supabase.from("profiles").select("theme, display_name").eq("id", userId).single(),
   ]);
 
   const accounts: Account[] = (accountsRes.data ?? []).map((r) => ({
@@ -61,9 +62,22 @@ export async function hydrateStoreFromSupabase(userId: string): Promise<void> {
   }));
 
   const canceledSubscriptions = (canceledRes.data ?? []).map((r) => r.merchant_key);
-  const theme = (profileRes.data?.theme as ThemeMode | undefined) ?? "dark";
 
-  useAppStore.getState().hydrateFromRemote({ transactions, accounts, envelopes, goals, canceledSubscriptions, theme }, userId);
+  const recurringTransactions: RecurringTransaction[] = (recurringRes.data ?? []).map((r) => ({
+    id: r.id,
+    merchant: r.merchant,
+    category: r.category as CategoryId,
+    amount: Number(r.amount),
+    account: (r.account_id && accountNameById.get(r.account_id)) || "Unassigned",
+    dayOfMonth: r.day_of_month,
+  }));
+
+  const theme = (profileRes.data?.theme as ThemeMode | undefined) ?? "dark";
+  const displayName = profileRes.data?.display_name ?? undefined;
+
+  useAppStore
+    .getState()
+    .hydrateFromRemote({ transactions, accounts, envelopes, goals, canceledSubscriptions, recurringTransactions, theme, displayName }, userId);
 }
 
 export interface OnboardingAnswers {

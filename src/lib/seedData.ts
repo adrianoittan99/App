@@ -1,4 +1,4 @@
-import type { Account, Envelope, Goal, Transaction } from "./types";
+import type { Account, Envelope, Goal, RecurringTransaction, Transaction } from "./types";
 import { mulberry32, randInt, randRange, pick } from "./rng";
 
 let idCounter = 0;
@@ -147,6 +147,16 @@ export function generateAccounts(): Account[] {
     { id: nextId("acct"), name: "Aurora Credit Card", type: "credit", balance: -1243.18, apr: 0.2299, minimumPayment: 45, dueDay: 12 },
     { id: nextId("acct"), name: "Brokerage — Index Mix", type: "investment", balance: 22310.55 },
     { id: nextId("acct"), name: "Federal Student Loan", type: "loan", balance: -18400, apr: 0.0549, minimumPayment: 210, dueDay: 28 },
+  ];
+}
+
+export function generateRecurringTransactions(): RecurringTransaction[] {
+  return [
+    { id: nextId("rec"), merchant: "Northwind Labs Payroll", category: "income", amount: 3100, account: "Everyday Checking", dayOfMonth: 1 },
+    { id: nextId("rec"), merchant: "Skyline Apartments", category: "housing", amount: -1850, account: "Everyday Checking", dayOfMonth: 3 },
+    { id: nextId("rec"), merchant: "Netflix", category: "subscriptions", amount: -15.49, account: "Aurora Credit Card", dayOfMonth: 15 },
+    { id: nextId("rec"), merchant: "Spotify Premium", category: "subscriptions", amount: -11.99, account: "Aurora Credit Card", dayOfMonth: 18 },
+    { id: nextId("rec"), merchant: "Gym Pulse Fitness", category: "subscriptions", amount: -49.99, account: "Aurora Credit Card", dayOfMonth: 1 },
   ];
 }
 

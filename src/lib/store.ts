@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Account, CategoryId, Envelope, Goal, RemoteHydratePayload, ThemeMode, Transaction } from "./types";
-import { generateAccounts, generateEnvelopes, generateGoals, generateTransactions } from "./seedData";
+import type { Account, CategoryId, Envelope, Goal, RecurringTransaction, RemoteHydratePayload, ThemeMode, Transaction } from "./types";
+import { generateAccounts, generateEnvelopes, generateGoals, generateRecurringTransactions, generateTransactions } from "./seedData";
 import { sortTransactions } from "./calculations";
 import { supabase } from "./supabaseClient";
 import type { Database } from "./database.types";
@@ -10,15 +10,18 @@ import { notifyError, notifyUndo } from "./toastStore";
 type AccountUpdate = Database["public"]["Tables"]["accounts"]["Update"];
 type GoalUpdate = Database["public"]["Tables"]["goals"]["Update"];
 type TransactionUpdate = Database["public"]["Tables"]["transactions"]["Update"];
+type RecurringUpdate = Database["public"]["Tables"]["recurring_transactions"]["Update"];
 
 interface AppState {
   transactions: Transaction[];
   envelopes: Envelope[];
   goals: Goal[];
   accounts: Account[];
+  recurringTransactions: RecurringTransaction[];
   theme: ThemeMode;
   canceledSubscriptions: string[]; // merchant keys
   hasSeenIntro: boolean;
+  displayName: string | null;
 
   // When true, the arrays above are a signed-in user's real data and every
   // mutation below also writes through to Supabase. When false, this is the
@@ -43,8 +46,14 @@ interface AppState {
   createGoal: (goal: Omit<Goal, "id">) => Promise<void>;
   updateGoal: (goalId: string, patch: Partial<Omit<Goal, "id">>) => Promise<void>;
   deleteGoal: (goalId: string) => Promise<void>;
+  createRecurring: (rule: Omit<RecurringTransaction, "id">) => Promise<void>;
+  updateRecurring: (id: string, patch: Partial<Omit<RecurringTransaction, "id">>) => Promise<void>;
+  deleteRecurring: (id: string) => Promise<void>;
+  /** Logs today's transaction for a recurring rule — never automatic, always a user action. */
+  confirmRecurring: (id: string, overrides?: { amount?: number; account?: string }) => Promise<void>;
   toggleTheme: () => void;
   setTheme: (mode: ThemeMode) => void;
+  setDisplayName: (name: string) => Promise<void>;
   cancelSubscription: (merchantKey: string) => Promise<void>;
   reinstateSubscription: (merchantKey: string) => Promise<void>;
   markIntroSeen: () => void;
@@ -68,6 +77,7 @@ function freshDemoData() {
     accounts: generateAccounts(),
     goals: generateGoals(),
     envelopes: generateEnvelopes(),
+    recurringTransactions: generateRecurringTransactions(),
   };
 }
 
@@ -78,6 +88,7 @@ export const useAppStore = create<AppState>()(
       theme: "dark",
       canceledSubscriptions: [],
       hasSeenIntro: false,
+      displayName: null,
       remoteMode: false,
       remoteUserId: null,
       addTransactionModalOpen: false,
@@ -382,6 +393,94 @@ export const useAppStore = create<AppState>()(
         });
       },
 
+      createRecurring: async (rule) => {
+        const state = get();
+        const account = state.accounts.find((a) => a.name === rule.account);
+        if (state.remoteMode && state.remoteUserId) {
+          const { data, error } = await supabase
+            .from("recurring_transactions")
+            .insert({
+              user_id: state.remoteUserId,
+              merchant: rule.merchant,
+              category: rule.category,
+              amount: rule.amount,
+              account_id: account?.id ?? null,
+              day_of_month: rule.dayOfMonth,
+            })
+            .select()
+            .single();
+          if (error || !data) {
+            notifyError("Couldn't save that recurring transaction — try again.");
+            return;
+          }
+          set((s) => ({
+            recurringTransactions: [
+              ...s.recurringTransactions,
+              {
+                id: data.id,
+                merchant: data.merchant,
+                category: data.category as CategoryId,
+                amount: Number(data.amount),
+                account: rule.account,
+                dayOfMonth: data.day_of_month,
+              },
+            ],
+          }));
+          return;
+        }
+        set((s) => ({ recurringTransactions: [...s.recurringTransactions, { ...rule, id: `rec_${Date.now().toString(36)}` }] }));
+      },
+
+      updateRecurring: async (id, patch) => {
+        set((s) => ({
+          recurringTransactions: s.recurringTransactions.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+        }));
+        const state = get();
+        if (state.remoteMode && state.remoteUserId) {
+          const dbPatch: RecurringUpdate = {};
+          if (patch.merchant !== undefined) dbPatch.merchant = patch.merchant;
+          if (patch.category !== undefined) dbPatch.category = patch.category;
+          if (patch.amount !== undefined) dbPatch.amount = patch.amount;
+          if (patch.dayOfMonth !== undefined) dbPatch.day_of_month = patch.dayOfMonth;
+          if (patch.account !== undefined) {
+            const account = state.accounts.find((a) => a.name === patch.account);
+            dbPatch.account_id = account?.id ?? null;
+          }
+          const { error } = await supabase.from("recurring_transactions").update(dbPatch).eq("id", id);
+          if (error) notifyError("Couldn't save that change.");
+        }
+      },
+
+      deleteRecurring: async (id) => {
+        const state = get();
+        const rule = state.recurringTransactions.find((r) => r.id === id);
+        if (!rule) return;
+
+        set((s) => ({ recurringTransactions: s.recurringTransactions.filter((r) => r.id !== id) }));
+        if (state.remoteMode && state.remoteUserId) {
+          const { error } = await supabase.from("recurring_transactions").delete().eq("id", id);
+          if (error) notifyError("Couldn't delete that — try again.");
+        }
+
+        const { id: _discardId, ...withoutId } = rule;
+        void _discardId;
+        notifyUndo(`Removed "${rule.merchant}" from recurring`, () => {
+          void get().createRecurring(withoutId);
+        });
+      },
+
+      confirmRecurring: async (id, overrides) => {
+        const rule = get().recurringTransactions.find((r) => r.id === id);
+        if (!rule) return;
+        await get().addTransaction({
+          merchant: rule.merchant,
+          category: rule.category,
+          amount: overrides?.amount ?? rule.amount,
+          account: overrides?.account ?? rule.account,
+          date: new Date().toISOString().slice(0, 10),
+        });
+      },
+
       toggleTheme: () => get().setTheme(get().theme === "dark" ? "light" : "dark"),
 
       setTheme: (mode) => {
@@ -395,6 +494,16 @@ export const useAppStore = create<AppState>()(
             .then(({ error }) => {
               if (error) notifyError("Theme didn't sync to your account, but it's applied here.");
             });
+        }
+      },
+
+      setDisplayName: async (name) => {
+        const trimmed = name.trim();
+        set({ displayName: trimmed || null });
+        const state = get();
+        if (state.remoteMode && state.remoteUserId) {
+          const { error } = await supabase.from("profiles").update({ display_name: trimmed || null }).eq("id", state.remoteUserId);
+          if (error) notifyError("Couldn't save your name — try again.");
         }
       },
 
@@ -433,14 +542,18 @@ export const useAppStore = create<AppState>()(
           envelopes: payload.envelopes,
           goals: payload.goals,
           canceledSubscriptions: payload.canceledSubscriptions,
+          recurringTransactions: payload.recurringTransactions,
           theme: payload.theme ?? "dark",
+          displayName: payload.displayName ?? null,
           remoteMode: true,
           remoteUserId: userId,
         }),
 
       exitRemoteMode: () =>
         set((state) =>
-          state.remoteMode ? { ...freshDemoData(), canceledSubscriptions: [], remoteMode: false, remoteUserId: null } : {}
+          state.remoteMode
+            ? { ...freshDemoData(), canceledSubscriptions: [], displayName: null, remoteMode: false, remoteUserId: null }
+            : {}
         ),
 
       openAddTransactionModal: () => set({ addTransactionModalOpen: true }),
@@ -467,13 +580,14 @@ export const useAppStore = create<AppState>()(
           supabase.from("envelopes").delete().eq("user_id", uid),
           supabase.from("goals").delete().eq("user_id", uid),
           supabase.from("canceled_subscriptions").delete().eq("user_id", uid),
+          supabase.from("recurring_transactions").delete().eq("user_id", uid),
           supabase.from("accounts").delete().eq("user_id", uid),
         ]);
         const profileRes = await supabase.from("profiles").update({ onboarding_completed: false }).eq("id", uid);
         if (results.some((r) => r.error) || profileRes.error) {
           notifyError("Some of that may not have fully cleared — refresh and check before re-onboarding.");
         }
-        set({ transactions: [], accounts: [], envelopes: [], goals: [], canceledSubscriptions: [] });
+        set({ transactions: [], accounts: [], envelopes: [], goals: [], canceledSubscriptions: [], recurringTransactions: [] });
       },
     }),
     {

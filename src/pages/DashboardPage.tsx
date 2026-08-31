@@ -4,6 +4,7 @@ import { useAppStore } from "../lib/store";
 import {
   computeBadges,
   computeDebtBalance,
+  computeDueRecurring,
   computeEnvelopeProgress,
   computeHealthScore,
   computeLiquidBalance,
@@ -35,6 +36,8 @@ export function DashboardPage() {
   const accounts = useAppStore((s) => s.accounts);
   const goals = useAppStore((s) => s.goals);
   const canceledSubscriptions = useAppStore((s) => s.canceledSubscriptions);
+  const recurringTransactions = useAppStore((s) => s.recurringTransactions);
+  const confirmRecurring = useAppStore((s) => s.confirmRecurring);
   const openAddTransactionModal = useAppStore((s) => s.openAddTransactionModal);
 
   const realCurrentMonth = monthKey(new Date());
@@ -89,9 +92,29 @@ export function DashboardPage() {
   // Savings rate shown in the stat tile follows the selected month — distinct
   // from health.savingsRate, which is pinned to the real current month above.
   const selectedSavingsRate = summary.income > 0 ? (summary.income - summary.expenses) / summary.income : 0;
+  const dueRecurring = computeDueRecurring(recurringTransactions, transactions);
 
   return (
     <div className="space-y-6">
+      {isCurrent && dueRecurring.length > 0 && (
+        <div className="rounded-2xl p-4 border border-[var(--amber)]/30 bg-[var(--amber)]/10 flex items-center justify-between gap-4 flex-wrap">
+          <p className="text-sm">
+            <span className="font-semibold">{dueRecurring.length} recurring transaction{dueRecurring.length === 1 ? "" : "s"}</span>{" "}
+            <span className="text-[var(--text-muted)]">due this month — confirm in a couple taps.</span>
+          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            {dueRecurring.slice(0, 3).map(({ rule }) => (
+              <Button key={rule.id} size="sm" variant="secondary" onClick={() => confirmRecurring(rule.id)}>
+                Confirm {rule.merchant}
+              </Button>
+            ))}
+            <Link to="/app/recurring" className="text-xs font-medium text-[var(--violet)] hover:underline">
+              View all →
+            </Link>
+          </div>
+        </div>
+      )}
+
       {transactions.length === 0 && (
         <div
           className="relative overflow-hidden rounded-[20px] p-6 sm:p-7 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"

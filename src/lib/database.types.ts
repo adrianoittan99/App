@@ -147,6 +147,30 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["canceled_subscriptions"]["Insert"]>;
         Relationships: [];
       };
+      recurring_transactions: {
+        Row: {
+          id: string;
+          user_id: string;
+          merchant: string;
+          category: string;
+          amount: number;
+          account_id: string | null;
+          day_of_month: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          merchant: string;
+          category: string;
+          amount: number;
+          account_id?: string | null;
+          day_of_month: number;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["recurring_transactions"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;

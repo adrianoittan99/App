@@ -8,6 +8,7 @@ const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage").then((m
 const OnboardingPage = lazy(() => import("./pages/OnboardingPage").then((m) => ({ default: m.OnboardingPage })));
 const DashboardPage = lazy(() => import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
 const TransactionsPage = lazy(() => import("./pages/TransactionsPage").then((m) => ({ default: m.TransactionsPage })));
+const RecurringPage = lazy(() => import("./pages/RecurringPage").then((m) => ({ default: m.RecurringPage })));
 const BalancesPage = lazy(() => import("./pages/BalancesPage").then((m) => ({ default: m.BalancesPage })));
 const BudgetsPage = lazy(() => import("./pages/BudgetsPage").then((m) => ({ default: m.BudgetsPage })));
 const GoalsPage = lazy(() => import("./pages/GoalsPage").then((m) => ({ default: m.GoalsPage })));
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/app" element={<AppGate />}>
           <Route index element={<DashboardPage />} />
           <Route path="transactions" element={<TransactionsPage />} />
+          <Route path="recurring" element={<RecurringPage />} />
           <Route path="balances" element={<BalancesPage />} />
           <Route path="budgets" element={<BudgetsPage />} />
           <Route path="goals" element={<GoalsPage />} />

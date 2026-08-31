@@ -100,6 +100,23 @@ create table if not exists public.canceled_subscriptions (
 );
 
 -- ---------------------------------------------------------------------------
+-- recurring_transactions: predictable monthly transactions (rent, payroll,
+-- subscriptions) defined once. Aurora never logs these on its own — it
+-- surfaces them as "due" and the user confirms, so the ledger stays 100%
+-- something the user actually approved.
+-- ---------------------------------------------------------------------------
+create table if not exists public.recurring_transactions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  merchant text not null,
+  category text not null,
+  amount numeric not null,
+  account_id uuid references public.accounts (id) on delete set null,
+  day_of_month integer not null check (day_of_month between 1 and 31),
+  created_at timestamptz not null default now()
+);
+
+-- ---------------------------------------------------------------------------
 -- Row Level Security: every table is locked to "only your own rows,"
 -- enforced by the database itself (not just app code).
 -- ---------------------------------------------------------------------------
@@ -109,6 +126,7 @@ alter table public.transactions enable row level security;
 alter table public.envelopes enable row level security;
 alter table public.goals enable row level security;
 alter table public.canceled_subscriptions enable row level security;
+alter table public.recurring_transactions enable row level security;
 
 drop policy if exists "profiles_owner" on public.profiles;
 create policy "profiles_owner" on public.profiles
@@ -132,6 +150,10 @@ create policy "goals_owner" on public.goals
 
 drop policy if exists "canceled_subscriptions_owner" on public.canceled_subscriptions;
 create policy "canceled_subscriptions_owner" on public.canceled_subscriptions
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "recurring_transactions_owner" on public.recurring_transactions;
+create policy "recurring_transactions_owner" on public.recurring_transactions
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- ---------------------------------------------------------------------------
@@ -166,5 +188,6 @@ create trigger on_auth_user_created
 grant usage on schema public to authenticated;
 
 grant select, insert, update, delete
-  on public.profiles, public.accounts, public.transactions, public.envelopes, public.goals, public.canceled_subscriptions
+  on public.profiles, public.accounts, public.transactions, public.envelopes, public.goals, public.canceled_subscriptions,
+     public.recurring_transactions
   to authenticated;

@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "../lib/store";
 import { useAuth } from "../lib/authContext";
-import { supabase } from "../lib/supabaseClient";
-import { notifyError, useToastStore } from "../lib/toastStore";
+import { useToastStore } from "../lib/toastStore";
 import { Button } from "../components/ui/Button";
 import { Card, CardHeader } from "../components/ui/Card";
 import { PasswordInput } from "../components/ui/PasswordInput";
@@ -13,6 +12,8 @@ export function SettingsPage() {
   const setTheme = useAppStore((s) => s.setTheme);
   const accounts = useAppStore((s) => s.accounts);
   const remoteMode = useAppStore((s) => s.remoteMode);
+  const displayName = useAppStore((s) => s.displayName);
+  const setDisplayNameAction = useAppStore((s) => s.setDisplayName);
   const resetDemoData = useAppStore((s) => s.resetDemoData);
   const clearAllTransactions = useAppStore((s) => s.clearAllTransactions);
   const startOverRemoteAccount = useAppStore((s) => s.startOverRemoteAccount);
@@ -23,7 +24,6 @@ export function SettingsPage() {
   const [confirmStartOver, setConfirmStartOver] = useState(false);
   const [startingOver, setStartingOver] = useState(false);
 
-  const [displayName, setDisplayName] = useState("");
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
 
@@ -33,26 +33,9 @@ export function SettingsPage() {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [savingPassword, setSavingPassword] = useState(false);
 
-  useEffect(() => {
-    if (!remoteMode || !session) return;
-    supabase
-      .from("profiles")
-      .select("display_name")
-      .eq("id", session.user.id)
-      .single()
-      .then(({ data, error }) => {
-        if (error) return;
-        setDisplayName(data?.display_name ?? "");
-      });
-  }, [remoteMode, session]);
-
   async function saveDisplayName() {
-    if (!session) return;
-    const trimmed = nameDraft.trim();
-    setDisplayName(trimmed);
     setEditingName(false);
-    const { error } = await supabase.from("profiles").update({ display_name: trimmed || null }).eq("id", session.user.id);
-    if (error) notifyError("Couldn't save your name — try again.");
+    await setDisplayNameAction(nameDraft);
   }
 
   async function handleChangePassword() {
@@ -143,7 +126,7 @@ export function SettingsPage() {
                 </div>
               ) : (
                 <button
-                  onClick={() => { setNameDraft(displayName); setEditingName(true); }}
+                  onClick={() => { setNameDraft(displayName ?? ""); setEditingName(true); }}
                   className="text-sm font-medium hover:text-[var(--violet)] underline decoration-dotted decoration-[var(--text-faint)]"
                 >
                   {displayName || "Add your name →"}

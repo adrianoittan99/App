@@ -5,6 +5,7 @@ import type {
   FutureProjectionPoint,
   Goal,
   MoneyWeather,
+  RecurringTransaction,
   Subscription,
   Transaction,
   WeatherKind,
@@ -419,6 +420,43 @@ export function computeSpendingDNA(byCategory: Partial<Record<CategoryId, number
     .join("-");
 
   return { slices, code: code || "—" };
+}
+
+// ---------------------------------------------------------------------------
+// Recurring transactions — predictable stuff (rent, payroll, subscriptions)
+// the user defines once instead of re-typing every month. Nothing ever logs
+// itself silently: "due" just means "not yet matched to a real transaction
+// this month, and its day has arrived" — the user still confirms each one.
+// ---------------------------------------------------------------------------
+
+export interface DueRecurring {
+  rule: RecurringTransaction;
+  daysUntil: number; // negative/0 = due or overdue
+}
+
+/**
+ * A recurring rule counts as "fulfilled" for a month once any transaction
+ * with the same merchant exists in that month — so it also self-reconciles
+ * if the user just logs it normally instead of using the confirm flow.
+ */
+export function computeDueRecurring(recurring: RecurringTransaction[], transactions: Transaction[], from = new Date()): DueRecurring[] {
+  const key = monthKey(from);
+  const loggedMerchants = new Set(transactions.filter((t) => monthKey(t.date) === key).map((t) => t.merchant));
+
+  // Deliberately does NOT roll forward to next month once the day passes
+  // (unlike daysUntilDue for account bills) — an unconfirmed recurring
+  // transaction should keep reading "overdue" for the rest of this month
+  // rather than quietly jumping to next month's date.
+  const y = from.getUTCFullYear();
+  const m = from.getUTCMonth();
+  const todayDay = from.getUTCDate();
+  const daysInThisMonth = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+
+  return recurring
+    .filter((r) => !loggedMerchants.has(r.merchant))
+    .map((rule) => ({ rule, daysUntil: Math.min(rule.dayOfMonth, daysInThisMonth) - todayDay }))
+    .filter((d) => d.daysUntil <= 3) // surface a few days ahead of due; keeps showing (more overdue) until confirmed
+    .sort((a, b) => a.daysUntil - b.daysUntil);
 }
 
 // ---------------------------------------------------------------------------
