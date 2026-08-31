@@ -16,6 +16,11 @@ export function RecentTransactions({ transactions }: { transactions: Transaction
           </Link>
         }
       />
+      {recent.length === 0 && (
+        <p className="text-sm text-[var(--text-muted)] text-center py-6">
+          Nothing logged yet — add your first transaction and it'll show up here.
+        </p>
+      )}
       <div className="divide-y divide-[var(--border)]">
         {recent.map((t) => {
           const cat = CATEGORIES[t.category];

@@ -197,14 +197,21 @@ export function computeHealthScore(params: {
 }): HealthScoreBreakdown {
   const { income, expenses, envelopeProgress, liquidBalance, monthlyExpenseBaseline, debtBalance } = params;
 
+  // A brand-new account with no transaction history yet (income = expenses =
+  // 0 this month) shouldn't be scored as if it had a bad month — there's
+  // simply no data. Treat that case as neutral rather than penalizing it.
+  const hasActivityThisMonth = income > 0 || expenses > 0;
   const savingsRate = income > 0 ? (income - expenses) / income : 0;
-  const savingsScore01 = clamp01((savingsRate + 0.05) / 0.35); // 0% -> ~0.14, 20% -> ~0.71, 30%+ -> 1
+  const savingsScore01 = hasActivityThisMonth ? clamp01((savingsRate + 0.05) / 0.35) : 0.5; // 0% -> ~0.14, 20% -> ~0.71, 30%+ -> 1
 
   const relevant = envelopeProgress.filter((e) => e.categoryId !== "income");
   const withinBudgetCount = relevant.filter((e) => e.pct <= 1).length;
   const budgetAdherence = relevant.length ? withinBudgetCount / relevant.length : 1;
 
-  const emergencyFundMonths = monthlyExpenseBaseline > 0 ? liquidBalance / monthlyExpenseBaseline : 0;
+  // With no spending history, there's nothing to divide against — that's
+  // "not enough data" (liquidBalance / 0), not "no runway." Give any real
+  // balance the benefit of the doubt (fully-funded) instead of scoring 0.
+  const emergencyFundMonths = monthlyExpenseBaseline > 0 ? liquidBalance / monthlyExpenseBaseline : liquidBalance > 0 ? 6 : 0;
   const emergencyScore01 = clamp01(emergencyFundMonths / 6); // 6 months = fully funded
 
   const debtToIncome = income > 0 ? debtBalance / income : 0;

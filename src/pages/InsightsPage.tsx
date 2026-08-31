@@ -10,10 +10,16 @@ export function InsightsPage() {
         <p className="text-sm text-[var(--text-muted)] mt-1">The tools other budgeting apps skip.</p>
       </div>
 
-      <FutureSelfSimulator />
+      <div className="min-w-0">
+        <FutureSelfSimulator />
+      </div>
       <div className="grid xl:grid-cols-2 gap-6 items-start">
-        <SubscriptionXray />
-        <SpendingDNA />
+        <div className="min-w-0">
+          <SubscriptionXray />
+        </div>
+        <div className="min-w-0">
+          <SpendingDNA />
+        </div>
       </div>
     </div>
   );

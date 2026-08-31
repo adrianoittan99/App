@@ -22,6 +22,7 @@ import { RecentTransactions } from "../components/dashboard/RecentTransactions";
 import { StatTile } from "../components/dashboard/StatTile";
 import { BadgeStrip } from "../components/dashboard/BadgeStrip";
 import { GoalCard } from "../components/goals/GoalCard";
+import { Button } from "../components/ui/Button";
 
 export function DashboardPage() {
   const transactions = useAppStore((s) => s.transactions);
@@ -72,6 +73,30 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {transactions.length === 0 && (
+        <div
+          className="relative overflow-hidden rounded-[20px] p-6 sm:p-7 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+          style={{ background: "var(--aurora-gradient)" }}
+        >
+          <div className="absolute inset-0 noise-veil" />
+          <div className="relative">
+            <p className="text-white/80 text-xs font-medium uppercase tracking-wide">Getting started</p>
+            <h2 className="font-display font-bold text-xl text-white mt-1">Your dashboard is ready — it just needs data.</h2>
+            <p className="text-white/85 text-sm mt-1.5 max-w-md">
+              Everything below fills in the moment you log a real transaction. Add a paycheck or a purchase to see your
+              actual score, weather, and net worth take shape.
+            </p>
+          </div>
+          <Button
+            variant="secondary"
+            className="relative shrink-0 !bg-white !text-[var(--violet)] !border-transparent hover:!brightness-95"
+            onClick={openAddTransactionModal}
+          >
+            + Add your first transaction
+          </Button>
+        </div>
+      )}
+
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatTile
           label="Income this month"
@@ -128,12 +153,12 @@ export function DashboardPage() {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6 min-w-0">
           <MoneyWeatherCard weather={weather} />
           <NetWorthChart history={history} netWorth={netWorth} changePct={changePct} />
           <RecentTransactions transactions={transactions} />
         </div>
-        <div className="space-y-6">
+        <div className="space-y-6 min-w-0">
           <HealthScoreGauge breakdown={health} />
           <EnvelopeMiniList envelopes={envelopeProgress} />
         </div>

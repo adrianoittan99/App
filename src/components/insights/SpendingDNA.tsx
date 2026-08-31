@@ -63,7 +63,7 @@ export function SpendingDNA() {
       />
 
       <div className="grid sm:grid-cols-[1.1fr_0.9fr] gap-6 items-center">
-        <div className="h-64">
+        <div className="h-64 min-w-0">
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart data={radarData} outerRadius="62%" margin={{ top: 18, right: 28, bottom: 18, left: 28 }}>
               <PolarGrid stroke={theme === "dark" ? "#2c2c2a" : "#e1e0d9"} />

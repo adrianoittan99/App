@@ -9,6 +9,8 @@ interface AuthContextValue {
   signUpWithEmail: (email: string, password: string, displayName: string) => Promise<string | null>;
   signInWithEmail: (email: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<string | null>;
+  updatePassword: (newPassword: string) => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -57,8 +59,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useAppStore.getState().exitRemoteMode();
   }
 
+  async function sendPasswordReset(email: string) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    return error?.message ?? null;
+  }
+
+  async function updatePassword(newPassword: string) {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    return error?.message ?? null;
+  }
+
   return (
-    <AuthContext.Provider value={{ session, loading, signUpWithEmail, signInWithEmail, signOut }}>
+    <AuthContext.Provider
+      value={{ session, loading, signUpWithEmail, signInWithEmail, signOut, sendPasswordReset, updatePassword }}
+    >
       {children}
     </AuthContext.Provider>
   );
