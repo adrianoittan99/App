@@ -41,6 +41,12 @@ interface AppState {
   exitRemoteMode: () => void;
   openAddTransactionModal: () => void;
   closeAddTransactionModal: () => void;
+  // Clears every logged transaction (a way to undo a batch of mistaken
+  // entries) without touching accounts, envelopes, or goals.
+  clearAllTransactions: () => Promise<void>;
+  // Full "start over": wipes everything for a signed-in user and drops
+  // onboarding_completed back to false, so the next visit re-runs onboarding.
+  startOverRemoteAccount: () => Promise<void>;
 }
 
 function freshDemoData() {
@@ -261,6 +267,29 @@ export const useAppStore = create<AppState>()(
 
       openAddTransactionModal: () => set({ addTransactionModalOpen: true }),
       closeAddTransactionModal: () => set({ addTransactionModalOpen: false }),
+
+      clearAllTransactions: async () => {
+        const state = get();
+        set({ transactions: [] });
+        if (state.remoteMode && state.remoteUserId) {
+          await supabase.from("transactions").delete().eq("user_id", state.remoteUserId);
+        }
+      },
+
+      startOverRemoteAccount: async () => {
+        const state = get();
+        if (!state.remoteMode || !state.remoteUserId) return;
+        const uid = state.remoteUserId;
+        await Promise.all([
+          supabase.from("transactions").delete().eq("user_id", uid),
+          supabase.from("envelopes").delete().eq("user_id", uid),
+          supabase.from("goals").delete().eq("user_id", uid),
+          supabase.from("canceled_subscriptions").delete().eq("user_id", uid),
+          supabase.from("accounts").delete().eq("user_id", uid),
+        ]);
+        await supabase.from("profiles").update({ onboarding_completed: false }).eq("id", uid);
+        set({ transactions: [], accounts: [], envelopes: [], goals: [], canceledSubscriptions: [] });
+      },
     }),
     {
       name: "aurora-budget-storage",

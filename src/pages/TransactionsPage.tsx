@@ -76,7 +76,7 @@ export function TransactionsPage() {
                 const cat = CATEGORIES[t.category];
                 const positive = t.amount >= 0;
                 return (
-                  <tr key={t.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-2)]/60 transition-colors group">
+                  <tr key={t.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-2)]/60 transition-colors">
                     <td className="px-4 py-3 font-medium whitespace-nowrap">{t.merchant}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full" style={{ background: `color-mix(in srgb, ${cat.color} 16%, transparent)`, color: cat.color }}>
@@ -92,7 +92,7 @@ export function TransactionsPage() {
                     <td className="px-4 py-3 text-right">
                       <button
                         onClick={() => deleteTransaction(t.id)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-[var(--red)] hover:underline"
+                        className="text-xs font-medium text-[var(--red)]/70 hover:text-[var(--red)] hover:underline"
                       >
                         Remove
                       </button>
