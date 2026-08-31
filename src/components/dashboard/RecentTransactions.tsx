@@ -4,12 +4,12 @@ import { CATEGORIES } from "../../lib/categories";
 import { formatDate, formatSigned } from "../../lib/format";
 import { Card, CardHeader } from "../ui/Card";
 
-export function RecentTransactions({ transactions }: { transactions: Transaction[] }) {
+export function RecentTransactions({ transactions, title = "Recent activity" }: { transactions: Transaction[]; title?: string }) {
   const recent = transactions.slice(0, 6);
   return (
     <Card>
       <CardHeader
-        title="Recent activity"
+        title={title}
         action={
           <Link to="/app/transactions" className="text-xs font-medium text-[var(--violet)] hover:underline">
             View all →

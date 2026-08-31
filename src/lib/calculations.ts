@@ -34,6 +34,17 @@ export function monthLabel(key: string): string {
   return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-US", { month: "short" });
 }
 
+export function monthLabelFull(key: string): string {
+  const [y, m] = key.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
+
+/** "2026-08" shifted by `delta` months (negative goes back). */
+export function shiftMonthKey(key: string, delta: number): string {
+  const [y, m] = key.split("-").map(Number);
+  return monthKey(new Date(Date.UTC(y, m - 1 + delta, 1)));
+}
+
 // ---------------------------------------------------------------------------
 // Summaries
 // ---------------------------------------------------------------------------

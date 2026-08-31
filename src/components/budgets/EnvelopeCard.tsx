@@ -11,7 +11,7 @@ import { Pill } from "../ui/Pill";
 const STATUS_TONE = { "on-track": "green", watch: "amber", over: "red" } as const;
 const STATUS_LABEL = { "on-track": "On track", watch: "Watch", over: "Over budget" } as const;
 
-export function EnvelopeCard({ envelope }: { envelope: EnvelopeProgress }) {
+export function EnvelopeCard({ envelope, readOnly = false }: { envelope: EnvelopeProgress; readOnly?: boolean }) {
   const updateEnvelopeLimit = useAppStore((s) => s.updateEnvelopeLimit);
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
@@ -48,7 +48,9 @@ export function EnvelopeCard({ envelope }: { envelope: EnvelopeProgress }) {
 
       <div className="flex items-center justify-between mt-2.5 text-sm">
         <span className="tabular font-semibold">{formatCurrency(envelope.spent)}</span>
-        {editing ? (
+        {readOnly ? (
+          <span className="text-xs tabular text-[var(--text-faint)]">of {formatCurrency(envelope.monthlyLimit)}</span>
+        ) : editing ? (
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
             <span className="text-xs text-[var(--text-muted)]">/ $</span>
             <input

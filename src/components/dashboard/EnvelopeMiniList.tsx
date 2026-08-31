@@ -6,7 +6,7 @@ import { Card, CardHeader } from "../ui/Card";
 import { InfoTip } from "../ui/InfoTip";
 import { ProgressBar } from "../ui/ProgressBar";
 
-export function EnvelopeMiniList({ envelopes }: { envelopes: EnvelopeProgress[] }) {
+export function EnvelopeMiniList({ envelopes, monthLabel }: { envelopes: EnvelopeProgress[]; monthLabel?: string }) {
   const navigate = useNavigate();
   const top = [...envelopes].sort((a, b) => b.pct - a.pct).slice(0, 5);
 
@@ -15,7 +15,7 @@ export function EnvelopeMiniList({ envelopes }: { envelopes: EnvelopeProgress[] 
       <CardHeader
         title={
           <span className="flex items-center gap-1.5">
-            Envelopes this month
+            Envelopes {monthLabel ? `in ${monthLabel}` : "this month"}
             <InfoTip title="How envelopes work" action={{ label: "Edit a limit →", to: "/app/budgets" }}>
               Every category gets a monthly spending limit — an "envelope." Green means on track, amber means you've used
               85%+, red means you're over. Tap any limit on the Envelopes page to change it — Budget Adherence (25% of your
