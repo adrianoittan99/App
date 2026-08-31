@@ -139,10 +139,10 @@ export function SettingsPage() {
 
             <div className="pt-3 border-t border-[var(--border)] flex items-center justify-between gap-4 flex-wrap">
               <div>
-                <p className="text-sm font-medium">Clear all transactions</p>
+                <p className="text-sm font-medium">Clear transactions & balances</p>
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                  Wipes your whole transaction history. Envelopes, goals, and account balances are untouched — correct
-                  balances yourself above if needed. Can't be undone.
+                  Wipes your whole transaction history and resets every account balance to $0 — a genuinely clean slate.
+                  Envelopes and goals are untouched. Can't be undone.
                 </p>
               </div>
               {confirmClearTxns ? (

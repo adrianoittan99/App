@@ -6,6 +6,7 @@ import { supabase } from "./supabaseClient";
 import type { Database } from "./database.types";
 
 type AccountUpdate = Database["public"]["Tables"]["accounts"]["Update"];
+type GoalUpdate = Database["public"]["Tables"]["goals"]["Update"];
 
 interface AppState {
   transactions: Transaction[];
@@ -36,6 +37,8 @@ interface AppState {
   deleteAccount: (accountId: string) => Promise<void>;
   addGoalContribution: (goalId: string, amount: number) => Promise<void>;
   createGoal: (goal: Omit<Goal, "id">) => Promise<void>;
+  updateGoal: (goalId: string, patch: Partial<Omit<Goal, "id">>) => Promise<void>;
+  deleteGoal: (goalId: string) => Promise<void>;
   toggleTheme: () => void;
   setTheme: (mode: ThemeMode) => void;
   cancelSubscription: (merchantKey: string) => Promise<void>;
@@ -46,8 +49,9 @@ interface AppState {
   exitRemoteMode: () => void;
   openAddTransactionModal: () => void;
   closeAddTransactionModal: () => void;
-  // Clears every logged transaction (a way to undo a batch of mistaken
-  // entries) without touching accounts, envelopes, or goals.
+  // Clears every logged transaction AND resets every account balance to $0
+  // — a genuine fresh start for the ledger. Envelopes and goals are left
+  // alone (use startOverRemoteAccount for those too).
   clearAllTransactions: () => Promise<void>;
   // Full "start over": wipes everything for a signed-in user and drops
   // onboarding_completed back to false, so the next visit re-runs onboarding.
@@ -271,6 +275,31 @@ export const useAppStore = create<AppState>()(
         set((s) => ({ goals: [...s.goals, { ...goal, id: `goal_${Date.now().toString(36)}` }] }));
       },
 
+      updateGoal: async (goalId, patch) => {
+        set((s) => ({
+          goals: s.goals.map((g) => (g.id === goalId ? { ...g, ...patch } : g)),
+        }));
+        const state = get();
+        if (state.remoteMode && state.remoteUserId) {
+          const dbPatch: GoalUpdate = {};
+          if (patch.name !== undefined) dbPatch.name = patch.name;
+          if (patch.icon !== undefined) dbPatch.icon = patch.icon;
+          if (patch.color !== undefined) dbPatch.color = patch.color;
+          if (patch.target !== undefined) dbPatch.target = patch.target;
+          if (patch.saved !== undefined) dbPatch.saved = patch.saved;
+          if (patch.targetDate !== undefined) dbPatch.target_date = patch.targetDate || null;
+          await supabase.from("goals").update(dbPatch).eq("id", goalId);
+        }
+      },
+
+      deleteGoal: async (goalId) => {
+        set((s) => ({ goals: s.goals.filter((g) => g.id !== goalId) }));
+        const state = get();
+        if (state.remoteMode && state.remoteUserId) {
+          await supabase.from("goals").delete().eq("id", goalId);
+        }
+      },
+
       toggleTheme: () => get().setTheme(get().theme === "dark" ? "light" : "dark"),
 
       setTheme: (mode) => {
@@ -329,9 +358,12 @@ export const useAppStore = create<AppState>()(
 
       clearAllTransactions: async () => {
         const state = get();
-        set({ transactions: [] });
+        set((s) => ({ transactions: [], accounts: s.accounts.map((a) => ({ ...a, balance: 0 })) }));
         if (state.remoteMode && state.remoteUserId) {
-          await supabase.from("transactions").delete().eq("user_id", state.remoteUserId);
+          await Promise.all([
+            supabase.from("transactions").delete().eq("user_id", state.remoteUserId),
+            supabase.from("accounts").update({ balance: 0 }).eq("user_id", state.remoteUserId),
+          ]);
         }
       },
 
