@@ -11,6 +11,7 @@ import { Button } from "../ui/Button";
 const NAV_ITEMS = [
   { to: "/app", label: "Dashboard", icon: "◧", end: true },
   { to: "/app/transactions", label: "Transactions", icon: "☰", end: false },
+  { to: "/app/balances", label: "Balances", icon: "◈", end: false },
   { to: "/app/budgets", label: "Envelopes", icon: "▤", end: false },
   { to: "/app/goals", label: "Goals", icon: "◎", end: false },
   { to: "/app/insights", label: "Insights", icon: "✦", end: false },

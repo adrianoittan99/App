@@ -28,6 +28,9 @@ export async function hydrateStoreFromSupabase(userId: string): Promise<void> {
     name: r.name,
     type: r.type,
     balance: Number(r.balance),
+    apr: r.apr != null ? Number(r.apr) : undefined,
+    minimumPayment: r.minimum_payment != null ? Number(r.minimum_payment) : undefined,
+    dueDay: r.due_day ?? undefined,
   }));
   const accountNameById = new Map(accounts.map((a) => [a.id, a.name]));
 

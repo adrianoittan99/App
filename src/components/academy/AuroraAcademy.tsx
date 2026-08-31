@@ -65,6 +65,20 @@ const LESSONS: Lesson[] = [
     action: { label: "Try it — open Envelopes →", to: "/app/budgets" },
   },
   {
+    id: "balances",
+    eyebrow: "Balances",
+    title: "Every account and every due date, one place",
+    body: (
+      <>
+        Cash, credit cards, and loans — with a rate, a minimum payment, and a due date on anything you owe. Aurora
+        surfaces what's due soon and what's costing you the most in interest, plus a few situational tips based on your
+        actual numbers, not generic advice.
+      </>
+    ),
+    illustration: <BalancesArt />,
+    action: { label: "Try it — open Balances →", to: "/app/balances" },
+  },
+  {
     id: "networth",
     eyebrow: "Net worth & Future Self",
     title: "Where you stand, and where you're headed",
@@ -352,6 +366,31 @@ function EnvelopeArt() {
           />
         </div>
       ))}
+    </div>
+  );
+}
+
+function BalancesArt() {
+  return (
+    <div className="relative w-24 h-16">
+      <motion.div
+        className="absolute left-0 top-1 w-20 h-12 rounded-lg bg-white/25"
+        initial={{ opacity: 0, y: 8, rotate: -4 }}
+        animate={{ opacity: 1, y: 0, rotate: -4 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] as const }}
+      >
+        <div className="w-full h-3 rounded-t-lg bg-white/40 mt-2.5" />
+        <div className="w-8 h-1.5 rounded-full bg-white/50 mt-2 ml-2.5" />
+      </motion.div>
+      <motion.div
+        className="absolute right-0 bottom-0 w-9 h-9 rounded-full bg-white flex items-center justify-center text-sm font-bold"
+        style={{ color: "var(--violet)" }}
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ duration: 0.4, delay: 0.3, ease: [0.34, 1.56, 0.64, 1] as const }}
+      >
+        !
+      </motion.div>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useAppStore } from "../lib/store";
 import {
   computeBadges,
+  computeDebtBalance,
   computeEnvelopeProgress,
   computeHealthScore,
   computeLiquidBalance,
@@ -45,7 +46,7 @@ export function DashboardPage() {
   const changePct = history[0]?.value ? (netWorth - history[0].value) / Math.abs(history[0].value) : null;
 
   const monthlyExpenseBaseline = months.slice(0, -1).reduce((s, m) => s + summarizeMonth(transactions, m).expenses, 0) / Math.max(months.length - 1, 1);
-  const debtBalance = accounts.filter((a) => a.type === "credit" && a.balance < 0).reduce((s, a) => s + -a.balance, 0);
+  const debtBalance = computeDebtBalance(accounts);
 
   const health = computeHealthScore({
     income: summary.income,
@@ -147,7 +148,7 @@ export function DashboardPage() {
           tip={{
             title: "Emergency runway",
             body: "Your checking + savings balance, divided by your average monthly spend. It answers: \"if income stopped today, how many months could I cover?\" 6 months is considered fully funded.",
-            action: { label: "Edit your account balances →", to: "/app/settings" },
+            action: { label: "Edit your account balances →", to: "/app/balances" },
           }}
         />
       </div>

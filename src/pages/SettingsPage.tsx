@@ -2,23 +2,13 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "../lib/store";
 import { useAuth } from "../lib/authContext";
-import { formatCurrency } from "../lib/format";
 import { Button } from "../components/ui/Button";
 import { Card, CardHeader } from "../components/ui/Card";
-import { InfoTip } from "../components/ui/InfoTip";
-
-const ACCOUNT_LABEL: Record<string, string> = {
-  checking: "Checking",
-  savings: "Savings",
-  credit: "Credit card",
-  investment: "Investment",
-};
 
 export function SettingsPage() {
   const theme = useAppStore((s) => s.theme);
   const setTheme = useAppStore((s) => s.setTheme);
   const accounts = useAppStore((s) => s.accounts);
-  const updateAccountBalance = useAppStore((s) => s.updateAccountBalance);
   const remoteMode = useAppStore((s) => s.remoteMode);
   const resetDemoData = useAppStore((s) => s.resetDemoData);
   const clearAllTransactions = useAppStore((s) => s.clearAllTransactions);
@@ -98,23 +88,12 @@ export function SettingsPage() {
       </Card>
 
       <Card>
-        <CardHeader
-          title={
-            <span className="flex items-center gap-1.5">
-              Accounts
-              <InfoTip title="Why edit this here" side="top">
-                These balances are what your Net worth, Emergency runway, and Debt load score all read from. Adding a
-                transaction adjusts them automatically — but if a balance is just out of date, click it and type the real
-                number.
-              </InfoTip>
-            </span>
-          }
-          subtitle="Click a balance to correct it — this feeds net worth and your runway directly"
-        />
-        <div className="divide-y divide-[var(--border)]">
-          {accounts.map((a) => (
-            <AccountRow key={a.id} name={a.name} type={a.type} balance={a.balance} onSave={(v) => updateAccountBalance(a.id, v)} />
-          ))}
+        <CardHeader title="Accounts" subtitle={`${accounts.length} account${accounts.length === 1 ? "" : "s"} — balances, debt rates, and due dates`} />
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-[var(--text-muted)]">Manage balances, credit card / loan rates, and due dates on the Balances page.</p>
+          <Button variant="secondary" size="sm" className="shrink-0" onClick={() => navigate("/app/balances")}>
+            Open Balances →
+          </Button>
         </div>
       </Card>
 
@@ -212,70 +191,6 @@ export function SettingsPage() {
       <p className="text-xs text-[var(--text-faint)] text-center pt-2">
         Aurora — built by <span className="font-medium text-[var(--text-muted)]">Adrian Ibarra</span>
       </p>
-    </div>
-  );
-}
-
-function AccountRow({
-  name,
-  type,
-  balance,
-  onSave,
-}: {
-  name: string;
-  type: string;
-  balance: number;
-  onSave: (value: number) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(String(balance));
-
-  function commit() {
-    const val = parseFloat(draft);
-    if (!Number.isNaN(val)) onSave(val);
-    else setDraft(String(balance));
-    setEditing(false);
-  }
-
-  return (
-    <div className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
-      <div>
-        <p className="text-sm font-medium">{name}</p>
-        <p className="text-xs text-[var(--text-muted)]">{ACCOUNT_LABEL[type] ?? type}</p>
-      </div>
-      {editing ? (
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-[var(--text-muted)]">$</span>
-          <input
-            autoFocus
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") commit();
-              if (e.key === "Escape") {
-                setDraft(String(balance));
-                setEditing(false);
-              }
-            }}
-            type="number"
-            step="0.01"
-            className="w-28 rounded-lg bg-[var(--surface-2)] border border-[var(--border)] px-2 py-1 text-sm tabular text-right outline-none focus:border-[var(--violet)]"
-          />
-        </div>
-      ) : (
-        <button
-          onClick={() => {
-            setDraft(String(balance));
-            setEditing(true);
-          }}
-          className={`text-sm font-semibold tabular underline decoration-dotted decoration-[var(--text-faint)] hover:decoration-[var(--violet)] ${
-            balance < 0 ? "text-[var(--red)]" : ""
-          }`}
-        >
-          {formatCurrency(balance, true)}
-        </button>
-      )}
     </div>
   );
 }

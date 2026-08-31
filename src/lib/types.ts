@@ -50,8 +50,13 @@ export interface Goal {
 export interface Account {
   id: string;
   name: string;
-  type: "checking" | "savings" | "credit" | "investment";
+  type: "checking" | "savings" | "credit" | "investment" | "loan";
   balance: number;
+  // Debt-only fields (credit / loan accounts) — all optional, all set from
+  // the Balances page after the fact, never required at onboarding.
+  apr?: number; // annual interest rate, e.g. 0.2299 for 22.99%
+  minimumPayment?: number;
+  dueDay?: number; // day of month, 1-31, the payment is due
 }
 
 export type ThemeMode = "dark" | "light";

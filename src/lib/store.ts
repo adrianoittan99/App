@@ -3,6 +3,9 @@ import { persist } from "zustand/middleware";
 import type { Account, CategoryId, Envelope, Goal, RemoteHydratePayload, ThemeMode, Transaction } from "./types";
 import { generateAccounts, generateEnvelopes, generateGoals, generateTransactions } from "./seedData";
 import { supabase } from "./supabaseClient";
+import type { Database } from "./database.types";
+
+type AccountUpdate = Database["public"]["Tables"]["accounts"]["Update"];
 
 interface AppState {
   transactions: Transaction[];
@@ -28,7 +31,9 @@ interface AppState {
   addTransaction: (t: Omit<Transaction, "id">) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   updateEnvelopeLimit: (categoryId: CategoryId, limit: number) => Promise<void>;
-  updateAccountBalance: (accountId: string, balance: number) => Promise<void>;
+  createAccount: (account: Omit<Account, "id">) => Promise<void>;
+  updateAccount: (accountId: string, patch: Partial<Omit<Account, "id">>) => Promise<void>;
+  deleteAccount: (accountId: string) => Promise<void>;
   addGoalContribution: (goalId: string, amount: number) => Promise<void>;
   createGoal: (goal: Omit<Goal, "id">) => Promise<void>;
   toggleTheme: () => void;
@@ -152,13 +157,67 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      updateAccountBalance: async (accountId, balance) => {
+      createAccount: async (account) => {
+        const state = get();
+        if (state.remoteMode && state.remoteUserId) {
+          const { data, error } = await supabase
+            .from("accounts")
+            .insert({
+              user_id: state.remoteUserId,
+              name: account.name,
+              type: account.type,
+              balance: account.balance,
+              apr: account.apr ?? null,
+              minimum_payment: account.minimumPayment ?? null,
+              due_day: account.dueDay ?? null,
+            })
+            .select()
+            .single();
+          if (error || !data) {
+            console.error("Failed to create account", error);
+            return;
+          }
+          set((s) => ({
+            accounts: [
+              ...s.accounts,
+              {
+                id: data.id,
+                name: data.name,
+                type: data.type,
+                balance: Number(data.balance),
+                apr: data.apr != null ? Number(data.apr) : undefined,
+                minimumPayment: data.minimum_payment != null ? Number(data.minimum_payment) : undefined,
+                dueDay: data.due_day ?? undefined,
+              },
+            ],
+          }));
+          return;
+        }
+        set((s) => ({ accounts: [...s.accounts, { ...account, id: `acct_${Date.now().toString(36)}` }] }));
+      },
+
+      updateAccount: async (accountId, patch) => {
         set((s) => ({
-          accounts: s.accounts.map((a) => (a.id === accountId ? { ...a, balance } : a)),
+          accounts: s.accounts.map((a) => (a.id === accountId ? { ...a, ...patch } : a)),
         }));
         const state = get();
         if (state.remoteMode && state.remoteUserId) {
-          await supabase.from("accounts").update({ balance }).eq("id", accountId);
+          const dbPatch: AccountUpdate = {};
+          if (patch.name !== undefined) dbPatch.name = patch.name;
+          if (patch.type !== undefined) dbPatch.type = patch.type;
+          if (patch.balance !== undefined) dbPatch.balance = patch.balance;
+          if (patch.apr !== undefined) dbPatch.apr = patch.apr ?? null;
+          if (patch.minimumPayment !== undefined) dbPatch.minimum_payment = patch.minimumPayment ?? null;
+          if (patch.dueDay !== undefined) dbPatch.due_day = patch.dueDay ?? null;
+          await supabase.from("accounts").update(dbPatch).eq("id", accountId);
+        }
+      },
+
+      deleteAccount: async (accountId) => {
+        set((s) => ({ accounts: s.accounts.filter((a) => a.id !== accountId) }));
+        const state = get();
+        if (state.remoteMode && state.remoteUserId) {
+          await supabase.from("accounts").delete().eq("id", accountId);
         }
       },
 

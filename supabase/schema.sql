@@ -23,11 +23,25 @@ create table if not exists public.accounts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
   name text not null,
-  type text not null check (type in ('checking', 'savings', 'credit', 'investment')),
+  type text not null check (type in ('checking', 'savings', 'credit', 'investment', 'loan')),
   balance numeric not null default 0,
+  -- Debt-only fields, all optional — set from the Balances page, not required
+  -- at onboarding. apr is a fraction (0.2299 = 22.99%), due_day is 1-31.
+  apr numeric,
+  minimum_payment numeric,
+  due_day integer check (due_day is null or (due_day between 1 and 31)),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Widen the type constraint and add the debt columns for projects that ran
+-- this file before 'loan' / apr / minimum_payment / due_day existed. Both
+-- blocks are no-ops on a fresh database.
+alter table public.accounts drop constraint if exists accounts_type_check;
+alter table public.accounts add constraint accounts_type_check check (type in ('checking', 'savings', 'credit', 'investment', 'loan'));
+alter table public.accounts add column if not exists apr numeric;
+alter table public.accounts add column if not exists minimum_payment numeric;
+alter table public.accounts add column if not exists due_day integer check (due_day is null or (due_day between 1 and 31));
 
 -- ---------------------------------------------------------------------------
 -- transactions: every income/expense entry

@@ -25,7 +25,7 @@ export function NetWorthChart({ history, netWorth, changePct }: Props) {
         title={
           <span className="flex items-center gap-1.5">
             Net worth
-            <InfoTip title="How net worth is calculated" action={{ label: "Edit your account balances →", to: "/app/settings" }}>
+            <InfoTip title="How net worth is calculated" action={{ label: "Edit your account balances →", to: "/app/balances" }}>
               Every checking, savings, and investment balance added together, minus what you owe on credit. The trend line is
               rebuilt month-by-month from your actual transaction history, so it always matches your ledger.
             </InfoTip>

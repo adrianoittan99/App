@@ -9,6 +9,7 @@ import type {
   Transaction,
   WeatherKind,
 } from "./types";
+import { formatCurrency, formatPercent } from "./format";
 
 // ---------------------------------------------------------------------------
 // Month helpers
@@ -96,7 +97,39 @@ export function computeLiquidBalance(accounts: Account[]): number {
 }
 
 export function computeDebtBalance(accounts: Account[]): number {
-  return accounts.filter((a) => a.type === "credit" && a.balance < 0).reduce((sum, a) => sum + -a.balance, 0);
+  return accounts.filter((a) => (a.type === "credit" || a.type === "loan") && a.balance < 0).reduce((sum, a) => sum + -a.balance, 0);
+}
+
+// ---------------------------------------------------------------------------
+// Balances — due-date awareness for credit/loan accounts
+// ---------------------------------------------------------------------------
+
+/** Days from `from` until the next occurrence of `dueDay` (0 = due today). */
+export function daysUntilDue(dueDay: number, from = new Date()): number {
+  const y = from.getUTCFullYear();
+  const m = from.getUTCMonth();
+  const todayDay = from.getUTCDate();
+  const clampedThisMonth = Math.min(dueDay, new Date(Date.UTC(y, m + 1, 0)).getUTCDate());
+  let target = new Date(Date.UTC(y, m, clampedThisMonth));
+  if (clampedThisMonth < todayDay) {
+    const clampedNextMonth = Math.min(dueDay, new Date(Date.UTC(y, m + 2, 0)).getUTCDate());
+    target = new Date(Date.UTC(y, m + 1, clampedNextMonth));
+  }
+  const startOfToday = new Date(Date.UTC(y, m, todayDay));
+  return Math.round((target.getTime() - startOfToday.getTime()) / 86400000);
+}
+
+export interface UpcomingDue {
+  account: Account;
+  daysUntil: number;
+}
+
+/** Debt accounts with a due day set, soonest first. */
+export function computeUpcomingDue(accounts: Account[], from = new Date()): UpcomingDue[] {
+  return accounts
+    .filter((a) => (a.type === "credit" || a.type === "loan") && a.dueDay)
+    .map((account) => ({ account, daysUntil: daysUntilDue(account.dueDay as number, from) }))
+    .sort((a, b) => a.daysUntil - b.daysUntil);
 }
 
 /**
@@ -386,6 +419,120 @@ export function computeUnderBudgetStreak(transactions: Transaction[], envelopes:
     }
   }
   return streak;
+}
+
+// ---------------------------------------------------------------------------
+// Money tips — short, calm, situational advice. Ranked by what's actually
+// pressing (a bill due this week beats a general savings-rate tip), and
+// always closes with one reassuring note rather than an unbroken wall of
+// warnings — the goal is awareness, not anxiety.
+// ---------------------------------------------------------------------------
+
+export interface MoneyTip {
+  id: string;
+  icon: string;
+  title: string;
+  body: string;
+  tone: "alert" | "calm" | "positive";
+}
+
+export function computeMoneyTips(params: {
+  health: HealthScoreBreakdown;
+  accounts: Account[];
+  upcomingDue: UpcomingDue[];
+  streak: number;
+}): MoneyTip[] {
+  const { health, accounts, upcomingDue, streak } = params;
+  const debts = accounts.filter((a) => (a.type === "credit" || a.type === "loan") && a.balance < 0);
+  const issues: MoneyTip[] = [];
+
+  const soonest = upcomingDue[0];
+  if (soonest && soonest.daysUntil <= 7) {
+    const when = soonest.daysUntil <= 0 ? "due today" : soonest.daysUntil === 1 ? "due tomorrow" : `due in ${soonest.daysUntil} days`;
+    issues.push({
+      id: "due-soon",
+      icon: "📅",
+      title: `${soonest.account.name} is ${when}`,
+      body: soonest.account.minimumPayment
+        ? `A minimum payment of ${formatCurrency(soonest.account.minimumPayment)} keeps you current. A calendar reminder now is cheaper than a late fee later.`
+        : "Set a reminder now — a minute today beats a late fee later.",
+      tone: "alert",
+    });
+  }
+
+  const highestApr = [...debts].filter((a) => a.apr).sort((a, b) => (b.apr ?? 0) - (a.apr ?? 0))[0];
+  if (highestApr && (highestApr.apr ?? 0) >= 0.15) {
+    issues.push({
+      id: "high-apr",
+      icon: "🔥",
+      title: `${highestApr.name} carries a ${formatPercent(highestApr.apr ?? 0, 1)} APR`,
+      body: "Interest at that rate compounds faster than most investments grow. Even an extra $20/month above the minimum shortens payoff time more than it looks like it should.",
+      tone: "alert",
+    });
+  }
+
+  if (health.emergencyFundMonths < 3) {
+    issues.push({
+      id: "emergency-fund",
+      icon: "☂",
+      title: "Your emergency fund is still building",
+      body: `${health.emergencyFundMonths.toFixed(1)} months of runway so far. Even $500 saved prevents most surprise expenses from turning into new debt — no pressure to hit 6 months overnight.`,
+      tone: "calm",
+    });
+  }
+
+  if (debts.length >= 2) {
+    issues.push({
+      id: "multiple-debts",
+      icon: "🎯",
+      title: "Juggling more than one balance?",
+      body: "Snowball (smallest balance first) builds momentum fast. Avalanche (highest interest first) saves the most money overall. Either beats no plan at all.",
+      tone: "calm",
+    });
+  }
+
+  if (health.savingsRate < 0.1) {
+    issues.push({
+      id: "savings-rate",
+      icon: "🌱",
+      title: "Not sure where to start saving?",
+      body: "The 50/30/20 rule is a simple floor, not a rule to stress over: roughly 50% needs, 30% wants, 20% savings. Adjust it to fit — it's a starting split, not a verdict.",
+      tone: "calm",
+    });
+  }
+
+  if (health.budgetAdherence < 0.6) {
+    issues.push({
+      id: "budget-adherence",
+      icon: "🧭",
+      title: "A few envelopes ran over this month",
+      body: "That's information, not a verdict — either the limit was unrealistic or the month was unusual. Adjust whichever one is actually true.",
+      tone: "calm",
+    });
+  }
+
+  // Always close with one reassuring note, so this never reads as a wall of warnings.
+  const reassurance: MoneyTip =
+    streak >= 7
+      ? {
+          id: "streak",
+          icon: "🔥",
+          title: `${streak}-day on-budget streak`,
+          body: "That consistency compounds. Momentum, not perfection, is what actually moves your score over time.",
+          tone: "positive",
+        }
+      : {
+          id: "doing-well",
+          icon: "✨",
+          title: health.score >= 670 ? "You're in solid shape" : "Every month of data makes this sharper",
+          body:
+            health.score >= 670
+              ? "The main risk from here is lifestyle creep as income grows — automating extra savings the moment a raise lands keeps that from happening quietly."
+              : "The score isn't a grade — it's a snapshot that updates the moment your numbers do. Small, consistent changes move it faster than one big overhaul.",
+          tone: "positive",
+        };
+
+  return [...issues.slice(0, 2), reassurance];
 }
 
 export interface Badge {

@@ -34,8 +34,11 @@ export type Database = {
           id: string;
           user_id: string;
           name: string;
-          type: "checking" | "savings" | "credit" | "investment";
+          type: "checking" | "savings" | "credit" | "investment" | "loan";
           balance: number;
+          apr: number | null;
+          minimum_payment: number | null;
+          due_day: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -43,8 +46,11 @@ export type Database = {
           id?: string;
           user_id: string;
           name: string;
-          type: "checking" | "savings" | "credit" | "investment";
+          type: "checking" | "savings" | "credit" | "investment" | "loan";
           balance?: number;
+          apr?: number | null;
+          minimum_payment?: number | null;
+          due_day?: number | null;
           created_at?: string;
           updated_at?: string;
         };

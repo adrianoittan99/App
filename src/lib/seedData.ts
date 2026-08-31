@@ -144,8 +144,9 @@ export function generateAccounts(): Account[] {
   return [
     { id: nextId("acct"), name: "Everyday Checking", type: "checking", balance: 4186.42 },
     { id: nextId("acct"), name: "High-Yield Savings", type: "savings", balance: 15840.0 },
-    { id: nextId("acct"), name: "Aurora Credit Card", type: "credit", balance: -1243.18 },
+    { id: nextId("acct"), name: "Aurora Credit Card", type: "credit", balance: -1243.18, apr: 0.2299, minimumPayment: 45, dueDay: 12 },
     { id: nextId("acct"), name: "Brokerage — Index Mix", type: "investment", balance: 22310.55 },
+    { id: nextId("acct"), name: "Federal Student Loan", type: "loan", balance: -18400, apr: 0.0549, minimumPayment: 210, dueDay: 28 },
   ];
 }
 

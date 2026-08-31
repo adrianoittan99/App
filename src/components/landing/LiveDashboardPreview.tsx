@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { useAppStore } from "../../lib/store";
 import {
+  computeDebtBalance,
   computeEnvelopeProgress,
   computeHealthScore,
   computeLiquidBalance,
@@ -26,7 +27,7 @@ export function LiveDashboardPreview() {
   const envelopeProgress = computeEnvelopeProgress(envelopes, transactions, currentMonth);
   const netWorth = computeNetWorth(accounts);
   const liquidBalance = computeLiquidBalance(accounts);
-  const debtBalance = accounts.filter((a) => a.type === "credit" && a.balance < 0).reduce((s, a) => s + -a.balance, 0);
+  const debtBalance = computeDebtBalance(accounts);
   const baseline = months.slice(0, -1).reduce((s, m) => s + summarizeMonth(transactions, m).expenses, 0) / Math.max(months.length - 1, 1);
 
   const health = computeHealthScore({
