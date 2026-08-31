@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import type { MoneyWeather } from "../../lib/types";
 import { Card } from "../ui/Card";
+import { InfoTip } from "../ui/InfoTip";
 
 const SKY: Record<MoneyWeather["kind"], string> = {
   sunny: "linear-gradient(180deg, #2b6cb0 0%, #4fa3d1 45%, #8fd7c4 100%)",
@@ -30,6 +31,14 @@ export function MoneyWeatherCard({ weather }: { weather: MoneyWeather }) {
       </div>
       <div className="p-5">
         <p className="text-sm text-[var(--text-muted)] leading-relaxed">{weather.detail}</p>
+        <div className="mt-2">
+          <InfoTip title="What drives the forecast" side="top" align="left">
+            Money Weather reads your Wellness Score, this month's net cash flow, your emergency runway, and your on-budget
+            streak, then paints the sky: <strong>sunny</strong> at a score of 740+, <strong>partly cloudy</strong> at 670+,
+            <strong> overcast</strong> at 580+, and a <strong>storm warning</strong> below that — or a rainbow the moment
+            you complete a goal.
+          </InfoTip>
+        </div>
       </div>
     </Card>
   );

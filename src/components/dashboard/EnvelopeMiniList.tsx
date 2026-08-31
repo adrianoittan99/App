@@ -3,6 +3,7 @@ import type { EnvelopeProgress } from "../../lib/calculations";
 import { CATEGORIES } from "../../lib/categories";
 import { formatCurrency } from "../../lib/format";
 import { Card, CardHeader } from "../ui/Card";
+import { InfoTip } from "../ui/InfoTip";
 import { ProgressBar } from "../ui/ProgressBar";
 
 export function EnvelopeMiniList({ envelopes }: { envelopes: EnvelopeProgress[] }) {
@@ -11,7 +12,16 @@ export function EnvelopeMiniList({ envelopes }: { envelopes: EnvelopeProgress[] 
   return (
     <Card>
       <CardHeader
-        title="Envelopes this month"
+        title={
+          <span className="flex items-center gap-1.5">
+            Envelopes this month
+            <InfoTip title="How envelopes work" action={{ label: "Edit a limit →", to: "/app/budgets" }}>
+              Every category gets a monthly spending limit — an "envelope." Green means on track, amber means you've used
+              85%+, red means you're over. Tap any limit on the Envelopes page to change it — Budget Adherence (25% of your
+              Wellness Score) is just the share of these you stay under.
+            </InfoTip>
+          </span>
+        }
         subtitle="Highest utilization first"
         action={
           <Link to="/app/budgets" className="text-xs font-medium text-[var(--violet)] hover:underline">

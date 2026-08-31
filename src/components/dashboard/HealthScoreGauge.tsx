@@ -2,6 +2,7 @@ import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import { useEffect, useState } from "react";
 import type { HealthScoreBreakdown } from "../../lib/calculations";
 import { Card, CardHeader } from "../ui/Card";
+import { InfoTip } from "../ui/InfoTip";
 import { formatPercent } from "../../lib/format";
 
 const MIN = 300;
@@ -36,7 +37,22 @@ export function HealthScoreGauge({ breakdown }: { breakdown: HealthScoreBreakdow
 
   return (
     <Card>
-      <CardHeader title="Financial Wellness Score" subtitle="Like a credit score, but for your budgeting habits" />
+      <CardHeader
+        title={
+          <span className="flex items-center gap-1.5">
+            Financial Wellness Score
+            <InfoTip
+              title="How your score is calculated"
+              action={{ label: "Improve budget adherence →", to: "/app/budgets" }}
+            >
+              A 300–850 blend of four weighted habits: <strong>savings rate</strong> (30%), <strong>emergency fund</strong>{" "}
+              (30%), <strong>budget adherence</strong> (25%), and <strong>debt load</strong> (15%). Move any bar below and
+              the score moves with it — instantly, not once a month.
+            </InfoTip>
+          </span>
+        }
+        subtitle="Like a credit score, but for your budgeting habits"
+      />
       <div className="flex flex-col items-center">
         <svg viewBox="0 0 200 110" className="w-full max-w-[260px]">
           <path d="M 16 100 A 84 84 0 0 1 184 100" fill="none" stroke="var(--surface-3)" strokeWidth="14" strokeLinecap="round" />
@@ -61,7 +77,9 @@ export function HealthScoreGauge({ breakdown }: { breakdown: HealthScoreBreakdow
         <div className="w-full space-y-2.5 mt-1">
           {breakdown.components.map((c) => (
             <div key={c.label} className="flex items-center gap-3 text-xs">
-              <span className="w-28 text-[var(--text-muted)] shrink-0">{c.label}</span>
+              <span className="w-28 text-[var(--text-muted)] shrink-0">
+                {c.label} <span className="text-[var(--text-faint)]">· {Math.round(c.weight * 100)}%</span>
+              </span>
               <div className="flex-1 h-1.5 rounded-full bg-[var(--surface-3)] overflow-hidden">
                 <motion.div
                   className="h-full rounded-full bg-[image:var(--aurora-gradient)]"

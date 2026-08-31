@@ -7,6 +7,7 @@ import { formatFullDate } from "../../lib/format";
 import { Card, CardHeader } from "../ui/Card";
 import { Button } from "../ui/Button";
 import { Pill } from "../ui/Pill";
+import { InfoTip } from "../ui/InfoTip";
 
 export function SubscriptionXray() {
   const transactions = useAppStore((s) => s.transactions);
@@ -25,7 +26,16 @@ export function SubscriptionXray() {
   return (
     <Card>
       <CardHeader
-        title="Subscription X-ray"
+        title={
+          <span className="flex items-center gap-1.5">
+            Subscription X-ray
+            <InfoTip title="How detection works" action={{ label: "Review your transactions →", to: "/app/transactions" }}>
+              No bank connection needed — Aurora scans your ledger for the same merchant charging a similar amount (within
+              8%) roughly every month (25–35 days apart), and flags it automatically. Essential bills like rent and
+              utilities are excluded on purpose; this is about discretionary charges you might not remember signing up for.
+            </InfoTip>
+          </span>
+        }
         subtitle={`${subs.length} recurring charges detected automatically from your ledger`}
       />
 

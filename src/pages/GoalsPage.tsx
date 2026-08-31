@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAppStore } from "../lib/store";
 import { GoalCard } from "../components/goals/GoalCard";
 import { Button } from "../components/ui/Button";
+import { InfoTip } from "../components/ui/InfoTip";
 
 const ICON_CHOICES = ["◎", "☂", "✈", "⌂", "◧", "♥", "★", "◈"];
 const COLOR_CHOICES = ["#2dd4bf", "#8b5cf6", "#ec4899", "#f59e0b", "#60a5fa", "#34d399"];
@@ -30,7 +31,14 @@ export function GoalsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display font-bold text-2xl">Goals</h1>
+          <h1 className="font-display font-bold text-2xl flex items-center gap-2">
+            Goals
+            <InfoTip title="How goals work">
+              Set a target amount and a date, then add funds whenever you like — "Add funds" just moves the needle, it
+              doesn't touch a real account. Cross the finish line and Aurora celebrates: your next Money Weather check can
+              turn into a rainbow, and it counts toward the "Goal Getter" badge.
+            </InfoTip>
+          </h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">{goals.filter((g) => g.saved >= g.target).length} of {goals.length} completed</p>
         </div>
         <Button onClick={() => setOpen((v) => !v)} icon={<span>+</span>}>

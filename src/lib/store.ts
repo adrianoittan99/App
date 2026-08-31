@@ -20,9 +20,15 @@ interface AppState {
   remoteMode: boolean;
   remoteUserId: string | null;
 
+  // Transient UI state: lets any component (e.g. an InfoTip's "go add one"
+  // action) open the Add Transaction modal without prop-drilling through
+  // AppShell. Excluded from persistence — see partialize below.
+  addTransactionModalOpen: boolean;
+
   addTransaction: (t: Omit<Transaction, "id">) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   updateEnvelopeLimit: (categoryId: CategoryId, limit: number) => Promise<void>;
+  updateAccountBalance: (accountId: string, balance: number) => Promise<void>;
   addGoalContribution: (goalId: string, amount: number) => Promise<void>;
   createGoal: (goal: Omit<Goal, "id">) => Promise<void>;
   toggleTheme: () => void;
@@ -33,6 +39,8 @@ interface AppState {
   resetDemoData: () => void;
   hydrateFromRemote: (payload: RemoteHydratePayload, userId: string) => void;
   exitRemoteMode: () => void;
+  openAddTransactionModal: () => void;
+  closeAddTransactionModal: () => void;
 }
 
 function freshDemoData() {
@@ -53,6 +61,7 @@ export const useAppStore = create<AppState>()(
       hasSeenIntro: false,
       remoteMode: false,
       remoteUserId: null,
+      addTransactionModalOpen: false,
 
       addTransaction: async (t) => {
         const state = get();
@@ -134,6 +143,16 @@ export const useAppStore = create<AppState>()(
             .update({ monthly_limit: clamped })
             .eq("user_id", state.remoteUserId)
             .eq("category", categoryId);
+        }
+      },
+
+      updateAccountBalance: async (accountId, balance) => {
+        set((s) => ({
+          accounts: s.accounts.map((a) => (a.id === accountId ? { ...a, balance } : a)),
+        }));
+        const state = get();
+        if (state.remoteMode && state.remoteUserId) {
+          await supabase.from("accounts").update({ balance }).eq("id", accountId);
         }
       },
 
@@ -239,10 +258,19 @@ export const useAppStore = create<AppState>()(
         set((state) =>
           state.remoteMode ? { ...freshDemoData(), canceledSubscriptions: [], remoteMode: false, remoteUserId: null } : {}
         ),
+
+      openAddTransactionModal: () => set({ addTransactionModalOpen: true }),
+      closeAddTransactionModal: () => set({ addTransactionModalOpen: false }),
     }),
     {
       name: "aurora-budget-storage",
       version: 4,
+      // Transient UI flags shouldn't survive a reload / follow the user
+      // between sessions — strip them out of the persisted snapshot.
+      partialize: (state) => {
+        const { addTransactionModalOpen: _addTransactionModalOpen, ...rest } = state;
+        return rest;
+      },
     }
   )
 );

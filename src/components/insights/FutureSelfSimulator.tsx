@@ -4,6 +4,7 @@ import { useAppStore } from "../../lib/store";
 import { computeNetWorth, findMilestoneYear, projectFutureNetWorth } from "../../lib/calculations";
 import { formatCompact, formatCurrency } from "../../lib/format";
 import { Card, CardHeader } from "../ui/Card";
+import { InfoTip } from "../ui/InfoTip";
 
 const MILESTONES = [100_000, 500_000, 1_000_000];
 
@@ -35,7 +36,16 @@ export function FutureSelfSimulator() {
   return (
     <Card>
       <CardHeader
-        title="Future Self simulator"
+        title={
+          <span className="flex items-center gap-1.5">
+            Future Self simulator
+            <InfoTip title="How the projection works">
+              Starting from your current net worth, this compounds a monthly contribution at an expected annual return —
+              basic time-value-of-money math, run three ways. The shaded band is a ±2 percentage-point range around your
+              chosen return, so "conservative" and "optimistic" bracket the solid projected line.
+            </InfoTip>
+          </span>
+        }
         subtitle="Drag the levers — this is the you of tomorrow, compounding today's choices"
       />
 

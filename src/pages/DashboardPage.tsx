@@ -29,6 +29,7 @@ export function DashboardPage() {
   const accounts = useAppStore((s) => s.accounts);
   const goals = useAppStore((s) => s.goals);
   const canceledSubscriptions = useAppStore((s) => s.canceledSubscriptions);
+  const openAddTransactionModal = useAppStore((s) => s.openAddTransactionModal);
 
   const months = lastNMonthKeys(6);
   const currentMonth = monthKey(new Date());
@@ -72,10 +73,58 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatTile label="Income this month" value={formatCurrency(summary.income)} icon="↓" accent="var(--green)" trend={{ value: formatPercent(Math.abs(incomeTrend)), positive: incomeTrend >= 0 }} delay={0} />
-        <StatTile label="Spent this month" value={formatCurrency(summary.expenses)} icon="↑" accent="var(--red)" trend={{ value: formatPercent(Math.abs(expenseTrend)), positive: expenseTrend <= 0 }} delay={0.05} />
-        <StatTile label="Savings rate" value={formatPercent(health.savingsRate)} icon="●" accent="var(--violet)" trend={null} delay={0.1} />
-        <StatTile label="Emergency runway" value={`${health.emergencyFundMonths.toFixed(1)} mo`} icon="☂" accent="var(--teal)" trend={null} delay={0.15} />
+        <StatTile
+          label="Income this month"
+          value={formatCurrency(summary.income)}
+          icon="↓"
+          accent="var(--green)"
+          trend={{ value: formatPercent(Math.abs(incomeTrend)), positive: incomeTrend >= 0 }}
+          delay={0}
+          tip={{
+            title: "Income this month",
+            body: "The sum of every transaction you've logged this month with a positive amount — paychecks, refunds, side income. It resets automatically at the start of each month.",
+            action: { label: "+ Log a paycheck or income →", onClick: openAddTransactionModal },
+          }}
+        />
+        <StatTile
+          label="Spent this month"
+          value={formatCurrency(summary.expenses)}
+          icon="↑"
+          accent="var(--red)"
+          trend={{ value: formatPercent(Math.abs(expenseTrend)), positive: expenseTrend <= 0 }}
+          delay={0.05}
+          tip={{
+            title: "Spent this month",
+            body: "The sum of every expense logged this month, split across your envelopes by category. Add or remove a transaction and this — and every envelope bar below — updates instantly.",
+            action: { label: "+ Log an expense →", onClick: openAddTransactionModal },
+          }}
+        />
+        <StatTile
+          label="Savings rate"
+          value={formatPercent(health.savingsRate)}
+          icon="●"
+          accent="var(--violet)"
+          trend={null}
+          delay={0.1}
+          tip={{
+            title: "Savings rate",
+            body: "(Income − expenses) ÷ income for this month. It's the single biggest lever on your Wellness Score — 30% of the score. Tightening an envelope you're overspending in is the fastest way to move it.",
+            action: { label: "Adjust your envelope limits →", to: "/app/budgets" },
+          }}
+        />
+        <StatTile
+          label="Emergency runway"
+          value={`${health.emergencyFundMonths.toFixed(1)} mo`}
+          icon="☂"
+          accent="var(--teal)"
+          trend={null}
+          delay={0.15}
+          tip={{
+            title: "Emergency runway",
+            body: "Your checking + savings balance, divided by your average monthly spend. It answers: \"if income stopped today, how many months could I cover?\" 6 months is considered fully funded.",
+            action: { label: "Edit your account balances →", to: "/app/settings" },
+          }}
+        />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">

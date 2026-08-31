@@ -5,6 +5,7 @@ import { lastNMonthKeys, summarizeMonth } from "../../lib/calculations";
 import { CHART_OTHER, CHART_SLOTS, chartColorFor } from "../../lib/chartPalette";
 import { formatCurrency, formatPercent } from "../../lib/format";
 import { Card, CardHeader } from "../ui/Card";
+import { InfoTip } from "../ui/InfoTip";
 
 export function SpendingDNA() {
   const transactions = useAppStore((s) => s.transactions);
@@ -47,7 +48,19 @@ export function SpendingDNA() {
 
   return (
     <Card>
-      <CardHeader title="Spending DNA" subtitle="Your category fingerprint over the last 3 months" />
+      <CardHeader
+        title={
+          <span className="flex items-center gap-1.5">
+            Spending DNA
+            <InfoTip title="Reading the code">
+              Your top 4 categories from the last 3 months, encoded as two letters + the share of spend they take up — e.g.{" "}
+              <code className="px-1 rounded bg-[var(--surface-3)]">DI37</code> means Dining was 37% of tracked spend. It's a
+              fun snapshot, and a fast way to notice a category creeping up without you realizing.
+            </InfoTip>
+          </span>
+        }
+        subtitle="Your category fingerprint over the last 3 months"
+      />
 
       <div className="grid sm:grid-cols-[1.1fr_0.9fr] gap-6 items-center">
         <div className="h-64">

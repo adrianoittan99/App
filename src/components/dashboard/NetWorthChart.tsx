@@ -1,6 +1,7 @@
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useAppStore } from "../../lib/store";
 import { Card, CardHeader } from "../ui/Card";
+import { InfoTip } from "../ui/InfoTip";
 import { formatCompact, formatCurrency } from "../../lib/format";
 import { monthLabel } from "../../lib/calculations";
 
@@ -21,7 +22,15 @@ export function NetWorthChart({ history, netWorth, changePct }: Props) {
   return (
     <Card>
       <CardHeader
-        title="Net worth"
+        title={
+          <span className="flex items-center gap-1.5">
+            Net worth
+            <InfoTip title="How net worth is calculated" action={{ label: "Edit your account balances →", to: "/app/settings" }}>
+              Every checking, savings, and investment balance added together, minus what you owe on credit. The trend line is
+              rebuilt month-by-month from your actual transaction history, so it always matches your ledger.
+            </InfoTip>
+          </span>
+        }
         subtitle="Checking + savings + investments, minus credit balance"
         action={
           <div className="text-right">

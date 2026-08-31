@@ -7,7 +7,9 @@ export function Footer() {
           <span className="font-display font-semibold">Aurora</span>
           <span className="text-xs text-[var(--text-faint)] ml-2">— budgeting that forecasts your future</span>
         </div>
-        <p className="text-xs text-[var(--text-faint)]">Demo product. All data is generated locally in your browser.</p>
+        <p className="text-xs text-[var(--text-faint)]">
+          Built by <span className="font-medium text-[var(--text-muted)]">Adrian Ibarra</span>
+        </p>
       </div>
     </footer>
   );

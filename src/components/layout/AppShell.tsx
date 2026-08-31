@@ -5,6 +5,7 @@ import { useAppStore } from "../../lib/store";
 import { useAuth } from "../../lib/authContext";
 import { computeUnderBudgetStreak } from "../../lib/calculations";
 import { AddTransactionModal } from "../transactions/AddTransactionModal";
+import { AuroraAcademy } from "../academy/AuroraAcademy";
 import { Button } from "../ui/Button";
 
 const NAV_ITEMS = [
@@ -22,10 +23,25 @@ export function AppShell() {
   const transactions = useAppStore((s) => s.transactions);
   const envelopes = useAppStore((s) => s.envelopes);
   const remoteMode = useAppStore((s) => s.remoteMode);
+  const addOpen = useAppStore((s) => s.addTransactionModalOpen);
+  const openAdd = useAppStore((s) => s.openAddTransactionModal);
+  const closeAdd = useAppStore((s) => s.closeAddTransactionModal);
+  const hasSeenIntro = useAppStore((s) => s.hasSeenIntro);
+  const markIntroSeen = useAppStore((s) => s.markIntroSeen);
   const { session, signOut } = useAuth();
   const navigate = useNavigate();
-  const [addOpen, setAddOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [academyOpen, setAcademyOpen] = useState(false);
+
+  useEffect(() => {
+    if (!hasSeenIntro) setAcademyOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function closeAcademy() {
+    setAcademyOpen(false);
+    markIntroSeen();
+  }
 
   async function handleSignOut() {
     await signOut();
@@ -64,6 +80,13 @@ export function AppShell() {
               {item.label}
             </NavLink>
           ))}
+          <button
+            onClick={() => setAcademyOpen(true)}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[var(--text-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)] transition-colors"
+          >
+            <span className="w-5 text-center opacity-80">?</span>
+            How Aurora works
+          </button>
         </nav>
 
         <div className="mt-auto pt-4 border-t border-[var(--border)] flex flex-col gap-3">
@@ -137,6 +160,16 @@ export function AppShell() {
                 {item.label}
               </NavLink>
             ))}
+            <button
+              onClick={() => {
+                setMobileNavOpen(false);
+                setAcademyOpen(true);
+              }}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[var(--text-muted)]"
+            >
+              <span className="w-5 text-center opacity-80">?</span>
+              How Aurora works
+            </button>
           </nav>
         )}
       </div>
@@ -148,7 +181,7 @@ export function AppShell() {
             <p className="text-xs text-[var(--text-muted)]">Welcome back</p>
             <p className="font-display font-semibold text-lg">Let's see where your money stands.</p>
           </div>
-          <Button size="md" onClick={() => setAddOpen(true)} icon={<span className="text-base leading-none">+</span>}>
+          <Button size="md" onClick={() => openAdd()} icon={<span className="text-base leading-none">+</span>}>
             Add transaction
           </Button>
         </header>
@@ -160,14 +193,15 @@ export function AppShell() {
 
       {/* Mobile floating add button */}
       <button
-        onClick={() => setAddOpen(true)}
+        onClick={() => openAdd()}
         className="lg:hidden fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full text-white text-2xl flex items-center justify-center shadow-[var(--shadow-glow)] bg-[image:var(--aurora-gradient)]"
         aria-label="Add transaction"
       >
         +
       </button>
 
-      <AddTransactionModal open={addOpen} onClose={() => setAddOpen(false)} />
+      <AddTransactionModal open={addOpen} onClose={closeAdd} />
+      <AuroraAcademy open={academyOpen} onClose={closeAcademy} />
     </div>
   );
 }

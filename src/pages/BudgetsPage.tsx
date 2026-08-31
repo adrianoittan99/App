@@ -3,6 +3,7 @@ import { computeEnvelopeProgress, monthKey } from "../lib/calculations";
 import { formatCurrency, formatMonthYear } from "../lib/format";
 import { EnvelopeCard } from "../components/budgets/EnvelopeCard";
 import { ProgressBar } from "../components/ui/ProgressBar";
+import { InfoTip } from "../components/ui/InfoTip";
 
 export function BudgetsPage() {
   const transactions = useAppStore((s) => s.transactions);
@@ -16,7 +17,14 @@ export function BudgetsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display font-bold text-2xl">Envelopes</h1>
+        <h1 className="font-display font-bold text-2xl flex items-center gap-2">
+          Envelopes
+          <InfoTip title="What's an envelope?">
+            A monthly spending cap per category, set from your onboarding answers. Every expense you log counts against the
+            matching envelope automatically — no manual sorting. Click any limit below to change it right there; it takes
+            effect immediately and feeds straight into your Wellness Score.
+          </InfoTip>
+        </h1>
         <p className="text-sm text-[var(--text-muted)] mt-1">{formatMonthYear(new Date().toISOString())} · click a limit to edit it inline</p>
       </div>
 
