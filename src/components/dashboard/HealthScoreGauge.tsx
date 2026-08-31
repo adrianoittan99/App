@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { HealthScoreBreakdown } from "../../lib/calculations";
 import { Card, CardHeader } from "../ui/Card";
 import { InfoTip } from "../ui/InfoTip";
+import { LivePill } from "../ui/LivePill";
 import { formatPercent } from "../../lib/format";
 
 const MIN = 300;
@@ -16,7 +17,7 @@ const BAND_COLOR: Record<HealthScoreBreakdown["band"], string> = {
   Exceptional: "var(--violet)",
 };
 
-export function HealthScoreGauge({ breakdown }: { breakdown: HealthScoreBreakdown }) {
+export function HealthScoreGauge({ breakdown, pinnedToToday = false }: { breakdown: HealthScoreBreakdown; pinnedToToday?: boolean }) {
   const [display, setDisplay] = useState(MIN);
   const mv = useMotionValue(MIN);
 
@@ -49,6 +50,7 @@ export function HealthScoreGauge({ breakdown }: { breakdown: HealthScoreBreakdow
               (30%), <strong>budget adherence</strong> (25%), and <strong>debt load</strong> (15%). Move any bar below and
               the score moves with it — instantly, not once a month.
             </InfoTip>
+            {pinnedToToday && <LivePill />}
           </span>
         }
         subtitle="Like a credit score, but for your budgeting habits"

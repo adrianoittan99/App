@@ -11,13 +11,21 @@ const SKY: Record<MoneyWeather["kind"], string> = {
   rainbow: "linear-gradient(180deg, #1c2a52 0%, #37518f 50%, #6f8fc9 100%)",
 };
 
-export function MoneyWeatherCard({ weather }: { weather: MoneyWeather }) {
+export function MoneyWeatherCard({ weather, pinnedToToday = false }: { weather: MoneyWeather; pinnedToToday?: boolean }) {
   return (
     <Card className="!p-0 overflow-hidden relative" delay={0}>
       <div className="relative h-52 overflow-hidden" style={{ background: SKY[weather.kind] }}>
         <div className="absolute top-4 left-5 right-5 z-10 flex items-start justify-between gap-3">
           <div className="max-w-[62%]">
-            <p className="text-white/70 text-xs uppercase tracking-wide font-medium">Money Weather</p>
+            <p className="text-white/70 text-xs uppercase tracking-wide font-medium flex items-center gap-1.5">
+              Money Weather
+              {pinnedToToday && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/20 text-white normal-case tracking-normal">
+                  <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                  Always today
+                </span>
+              )}
+            </p>
             <p className="text-white font-display font-bold text-xl mt-0.5 drop-shadow-sm leading-snug">{weather.headline}</p>
           </div>
           <div className="text-right shrink-0">

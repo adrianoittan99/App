@@ -2,6 +2,7 @@ import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "rec
 import { useAppStore } from "../../lib/store";
 import { Card, CardHeader } from "../ui/Card";
 import { InfoTip } from "../ui/InfoTip";
+import { LivePill } from "../ui/LivePill";
 import { formatCompact, formatCurrency } from "../../lib/format";
 import { monthLabel } from "../../lib/calculations";
 
@@ -9,9 +10,10 @@ interface Props {
   history: { key: string; value: number }[];
   netWorth: number;
   changePct: number | null;
+  pinnedToToday?: boolean;
 }
 
-export function NetWorthChart({ history, netWorth, changePct }: Props) {
+export function NetWorthChart({ history, netWorth, changePct, pinnedToToday = false }: Props) {
   const theme = useAppStore((s) => s.theme);
   const stroke = theme === "dark" ? "#3987e5" : "#2a78d6";
   const gridInk = theme === "dark" ? "#2c2c2a" : "#e1e0d9";
@@ -29,6 +31,7 @@ export function NetWorthChart({ history, netWorth, changePct }: Props) {
               Every checking, savings, and investment balance added together, minus what you owe on credit. The trend line is
               rebuilt month-by-month from your actual transaction history, so it always matches your ledger.
             </InfoTip>
+            {pinnedToToday && <LivePill />}
           </span>
         }
         subtitle="Checking + savings + investments, minus credit balance"

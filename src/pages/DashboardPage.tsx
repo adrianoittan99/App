@@ -117,10 +117,15 @@ export function DashboardPage() {
       )}
 
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <p className="text-xs text-[var(--text-muted)]">
-          Income, spending, and envelopes below follow the month you pick. Score, weather, and net worth always reflect
-          right now.
-        </p>
+        {isCurrent ? (
+          <span />
+        ) : (
+          <p className="text-xs text-[var(--amber)] flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--amber)] shrink-0" />
+            Viewing {monthLabelFull(selectedMonth)} — income, spending, and envelopes below are from that month. Cards
+            marked "Always today" haven't moved.
+          </p>
+        )}
         <MonthSwitcher value={selectedMonth} onChange={setSelectedMonth} />
       </div>
 
@@ -181,12 +186,12 @@ export function DashboardPage() {
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6 min-w-0">
-          <MoneyWeatherCard weather={weather} />
-          <NetWorthChart history={history} netWorth={netWorth} changePct={changePct} />
+          <MoneyWeatherCard weather={weather} pinnedToToday={!isCurrent} />
+          <NetWorthChart history={history} netWorth={netWorth} changePct={changePct} pinnedToToday={!isCurrent} />
           <RecentTransactions transactions={monthTransactions} title={isCurrent ? "Recent activity" : `Activity in ${monthLabelFull(selectedMonth)}`} />
         </div>
         <div className="space-y-6 min-w-0">
-          <HealthScoreGauge breakdown={health} />
+          <HealthScoreGauge breakdown={health} pinnedToToday={!isCurrent} />
           <EnvelopeMiniList envelopes={envelopeProgress} monthLabel={isCurrent ? undefined : monthLabelFull(selectedMonth)} />
         </div>
       </div>
