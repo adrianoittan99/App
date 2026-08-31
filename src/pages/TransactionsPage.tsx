@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAppStore } from "../lib/store";
 import { CATEGORIES, CATEGORY_LIST } from "../lib/categories";
 import { formatCurrency, formatFullDate } from "../lib/format";
@@ -8,9 +9,21 @@ import { Button } from "../components/ui/Button";
 export function TransactionsPage() {
   const transactions = useAppStore((s) => s.transactions);
   const deleteTransaction = useAppStore((s) => s.deleteTransaction);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<CategoryId | "all">("all");
+  const [category, setCategory] = useState<CategoryId | "all">((searchParams.get("category") as CategoryId | null) ?? "all");
   const [visibleCount, setVisibleCount] = useState(100);
+
+  // Arriving from "View activity" on an envelope (a new ?category= in the
+  // URL while this page stays mounted) should update the filter too.
+  useEffect(() => {
+    const fromUrl = searchParams.get("category") as CategoryId | null;
+    if (fromUrl && fromUrl !== category) {
+      setCategory(fromUrl);
+      setVisibleCount(100);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const filtered = useMemo(() => {
     return transactions.filter((t) => {
@@ -26,8 +39,18 @@ export function TransactionsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="font-display font-bold text-2xl">Transactions</h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1">
-          {transactions.length} total · {visible.length} of {filtered.length} shown
+        <p className="text-sm text-[var(--text-muted)] mt-1 flex items-center gap-2 flex-wrap">
+          <span>
+            {transactions.length} total · {visible.length} of {filtered.length} shown
+          </span>
+          {category !== "all" && (
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full" style={{ background: `color-mix(in srgb, ${CATEGORIES[category].color} 16%, transparent)`, color: CATEGORIES[category].color }}>
+              {CATEGORIES[category].icon} {CATEGORIES[category].label} only
+              <button onClick={() => { setCategory("all"); setSearchParams({}); }} className="hover:opacity-70" aria-label="Clear category filter">
+                ✕
+              </button>
+            </span>
+          )}
         </p>
       </div>
 
@@ -46,6 +69,7 @@ export function TransactionsPage() {
           onChange={(e) => {
             setCategory(e.target.value as CategoryId | "all");
             setVisibleCount(100);
+            setSearchParams({});
           }}
           className="rounded-xl bg-[var(--surface-2)] border border-[var(--border)] px-4 py-2.5 text-sm outline-none focus:border-[var(--violet)]"
         >
@@ -114,7 +138,7 @@ export function TransactionsPage() {
           <div className="p-10 text-center text-sm text-[var(--text-muted)]">
             No transactions match your filters.
             <div className="mt-3">
-              <Button size="sm" variant="secondary" onClick={() => { setQuery(""); setCategory("all"); }}>
+              <Button size="sm" variant="secondary" onClick={() => { setQuery(""); setCategory("all"); setSearchParams({}); }}>
                 Clear filters
               </Button>
             </div>

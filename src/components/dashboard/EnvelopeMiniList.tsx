@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import type { EnvelopeProgress } from "../../lib/calculations";
 import { CATEGORIES } from "../../lib/categories";
 import { formatCurrency } from "../../lib/format";
@@ -7,6 +7,7 @@ import { InfoTip } from "../ui/InfoTip";
 import { ProgressBar } from "../ui/ProgressBar";
 
 export function EnvelopeMiniList({ envelopes }: { envelopes: EnvelopeProgress[] }) {
+  const navigate = useNavigate();
   const top = [...envelopes].sort((a, b) => b.pct - a.pct).slice(0, 5);
 
   return (
@@ -33,9 +34,13 @@ export function EnvelopeMiniList({ envelopes }: { envelopes: EnvelopeProgress[] 
         {top.map((env) => {
           const cat = CATEGORIES[env.categoryId];
           return (
-            <div key={env.id}>
+            <button
+              key={env.id}
+              onClick={() => navigate(`/app/transactions?category=${env.categoryId}`)}
+              className="block w-full text-left group"
+            >
               <div className="flex items-center justify-between mb-1.5 text-sm">
-                <span className="flex items-center gap-2 font-medium">
+                <span className="flex items-center gap-2 font-medium group-hover:text-[var(--violet)] transition-colors">
                   <span className="w-6 h-6 rounded-lg flex items-center justify-center text-xs" style={{ background: `color-mix(in srgb, ${cat.color} 18%, transparent)`, color: cat.color }}>
                     {cat.icon}
                   </span>
@@ -46,7 +51,7 @@ export function EnvelopeMiniList({ envelopes }: { envelopes: EnvelopeProgress[] 
                 </span>
               </div>
               <ProgressBar pct={env.pct} color={cat.color} />
-            </div>
+            </button>
           );
         })}
       </div>
