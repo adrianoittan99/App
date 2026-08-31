@@ -45,6 +45,15 @@ export interface MonthlySummary {
   byCategory: Partial<Record<CategoryId, number>>; // positive spend per category
 }
 
+/**
+ * Newest first, by date — the order every list of transactions should be
+ * displayed in, regardless of the order they were logged in. Stable sort
+ * keeps same-day entries in their existing relative order.
+ */
+export function sortTransactions(transactions: Transaction[]): Transaction[] {
+  return [...transactions].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+}
+
 export function summarizeMonth(transactions: Transaction[], key: string): MonthlySummary {
   const inMonth = transactions.filter((t) => monthKey(t.date) === key);
   let income = 0;

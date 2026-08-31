@@ -23,11 +23,13 @@ const TYPE_LABEL: Record<Account["type"], string> = {
 
 export function BalancesPage() {
   const accounts = useAppStore((s) => s.accounts);
+  const transactions = useAppStore((s) => s.transactions);
   const createAccount = useAppStore((s) => s.createAccount);
   const updateAccount = useAppStore((s) => s.updateAccount);
   const deleteAccount = useAppStore((s) => s.deleteAccount);
 
   const [addOpen, setAddOpen] = useState(false);
+  const linkedCount = (name: string) => transactions.filter((t) => t.account === name).length;
 
   const cashAccounts = accounts.filter((a) => CASH_TYPES.includes(a.type));
   const debtAccounts = accounts.filter((a) => DEBT_TYPES.includes(a.type));
@@ -80,7 +82,7 @@ export function BalancesPage() {
         <CardHeader title="Cash & investments" subtitle="Click a balance to correct it" />
         <div className="divide-y divide-[var(--border)]">
           {cashAccounts.map((a) => (
-            <CashRow key={a.id} account={a} onSave={(patch) => updateAccount(a.id, patch)} onDelete={() => deleteAccount(a.id)} />
+            <CashRow key={a.id} account={a} linkedCount={linkedCount(a.name)} onSave={(patch) => updateAccount(a.id, patch)} onDelete={() => deleteAccount(a.id)} />
           ))}
           {cashAccounts.length === 0 && <p className="text-sm text-[var(--text-muted)] py-4">No cash accounts yet.</p>}
         </div>
@@ -90,7 +92,7 @@ export function BalancesPage() {
         <CardHeader title="Debts & bills" subtitle="Credit cards and loans — rate, minimum, and due date" />
         <div className="space-y-3">
           {debtAccounts.map((a) => (
-            <DebtCard key={a.id} account={a} onSave={(patch) => updateAccount(a.id, patch)} onDelete={() => deleteAccount(a.id)} />
+            <DebtCard key={a.id} account={a} linkedCount={linkedCount(a.name)} onSave={(patch) => updateAccount(a.id, patch)} onDelete={() => deleteAccount(a.id)} />
           ))}
           {debtAccounts.length === 0 && <p className="text-sm text-[var(--text-muted)] py-2">No debts tracked — nice.</p>}
         </div>
@@ -122,14 +124,17 @@ export function BalancesPage() {
 
 function CashRow({
   account,
+  linkedCount,
   onSave,
   onDelete,
 }: {
   account: Account;
+  linkedCount: number;
   onSave: (patch: Partial<Account>) => void;
   onDelete: () => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [draft, setDraft] = useState(String(account.balance));
 
   function commit() {
@@ -139,8 +144,27 @@ function CashRow({
     setEditing(false);
   }
 
+  if (confirmDelete) {
+    return (
+      <div className="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-xs text-[var(--text-muted)]">
+          Remove <strong>{account.name}</strong>?
+          {linkedCount > 0 ? ` ${linkedCount} transaction${linkedCount === 1 ? "" : "s"} reference it — they'll show as "Unassigned."` : ""} Can't be undone.
+        </p>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button size="sm" variant="danger" onClick={onDelete}>
+            Remove
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)}>
+            Cancel
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex items-center justify-between py-3 first:pt-0 last:pb-0 group">
+    <div className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
       <div>
         <p className="text-sm font-medium">{account.name}</p>
         <p className="text-xs text-[var(--text-muted)]">{TYPE_LABEL[account.type]}</p>
@@ -171,7 +195,7 @@ function CashRow({
             {formatCurrency(account.balance, true)}
           </button>
         )}
-        <button onClick={onDelete} className="text-xs text-[var(--text-faint)] hover:text-[var(--red)] opacity-0 group-hover:opacity-100 transition-opacity">
+        <button onClick={() => setConfirmDelete(true)} className="text-xs text-[var(--text-faint)] hover:text-[var(--red)]">
           Remove
         </button>
       </div>
@@ -181,14 +205,17 @@ function CashRow({
 
 function DebtCard({
   account,
+  linkedCount,
   onSave,
   onDelete,
 }: {
   account: Account;
+  linkedCount: number;
   onSave: (patch: Partial<Account>) => void;
   onDelete: () => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [balance, setBalance] = useState(String(Math.abs(account.balance)));
   const [apr, setApr] = useState(account.apr ? String(Math.round(account.apr * 10000) / 100) : "");
   const [minPayment, setMinPayment] = useState(account.minimumPayment ? String(account.minimumPayment) : "");
@@ -232,7 +259,22 @@ function DebtCard({
           <div className="flex items-end gap-2 sm:col-span-2">
             <Button size="sm" onClick={commit}>Save</Button>
             <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
-            <button onClick={onDelete} className="text-xs text-[var(--text-faint)] hover:text-[var(--red)] ml-auto">Remove account</button>
+            <button onClick={() => setConfirmDelete(true)} className="text-xs text-[var(--text-faint)] hover:text-[var(--red)] ml-auto">Remove account</button>
+          </div>
+        </div>
+      ) : confirmDelete ? (
+        <div className="mt-2">
+          <p className="text-xs text-[var(--text-muted)] mb-2">
+            Remove <strong>{account.name}</strong>?
+            {linkedCount > 0 ? ` ${linkedCount} transaction${linkedCount === 1 ? "" : "s"} reference it — they'll show as "Unassigned."` : ""} Can't be undone.
+          </p>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="danger" onClick={onDelete}>
+              Remove
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)}>
+              Cancel
+            </Button>
           </div>
         </div>
       ) : (

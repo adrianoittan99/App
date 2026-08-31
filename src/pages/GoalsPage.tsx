@@ -17,10 +17,12 @@ export function GoalsPage() {
   const [icon, setIcon] = useState(ICON_CHOICES[0]);
   const [color, setColor] = useState(COLOR_CHOICES[0]);
 
+  const targetInvalid = !(Number(target) > 0);
+
   function handleCreate() {
-    if (!name.trim()) return;
+    if (!name.trim() || targetInvalid) return;
     const targetDate = new Date(Date.now() + Number(months) * 30 * 86400000).toISOString();
-    createGoal({ name: name.trim(), icon, color, target: Number(target) || 0, saved: 0, targetDate });
+    createGoal({ name: name.trim(), icon, color, target: Number(target), saved: 0, targetDate });
     setName("");
     setTarget("1000");
     setMonths("6");
@@ -50,7 +52,7 @@ export function GoalsPage() {
         <div className="card p-5 space-y-3">
           <div className="grid sm:grid-cols-3 gap-3">
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Goal name" className="rounded-xl bg-[var(--surface-2)] border border-[var(--border)] px-3.5 py-2.5 text-sm outline-none focus:border-[var(--violet)]" />
-            <input value={target} onChange={(e) => setTarget(e.target.value)} type="number" min="0" placeholder="Target amount" className="rounded-xl bg-[var(--surface-2)] border border-[var(--border)] px-3.5 py-2.5 text-sm outline-none focus:border-[var(--violet)] tabular" />
+            <input value={target} onChange={(e) => setTarget(e.target.value)} type="number" min="1" placeholder="Target amount" className={`rounded-xl bg-[var(--surface-2)] border px-3.5 py-2.5 text-sm outline-none focus:border-[var(--violet)] tabular ${targetInvalid ? "border-[var(--red)]" : "border-[var(--border)]"}`} />
             <input value={months} onChange={(e) => setMonths(e.target.value)} type="number" min="1" placeholder="Months to reach it" className="rounded-xl bg-[var(--surface-2)] border border-[var(--border)] px-3.5 py-2.5 text-sm outline-none focus:border-[var(--violet)] tabular" />
           </div>
           <div className="flex items-center gap-4 flex-wrap">
@@ -66,7 +68,7 @@ export function GoalsPage() {
                 <button key={c} onClick={() => setColor(c)} className="w-6 h-6 rounded-full border-2" style={{ background: c, borderColor: color === c ? "var(--text)" : "transparent" }} />
               ))}
             </div>
-            <Button size="sm" onClick={handleCreate} className="ml-auto">
+            <Button size="sm" onClick={handleCreate} className="ml-auto" disabled={targetInvalid || !name.trim()}>
               Create goal
             </Button>
           </div>

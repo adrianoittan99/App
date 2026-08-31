@@ -6,6 +6,7 @@ import { useAuth } from "../../lib/authContext";
 import { computeUnderBudgetStreak } from "../../lib/calculations";
 import { AddTransactionModal } from "../transactions/AddTransactionModal";
 import { AuroraAcademy } from "../academy/AuroraAcademy";
+import { ToastHost } from "../ui/ToastHost";
 import { Button } from "../ui/Button";
 
 const NAV_ITEMS = [
@@ -203,6 +204,7 @@ export function AppShell() {
 
       <AddTransactionModal open={addOpen} onClose={closeAdd} />
       <AuroraAcademy open={academyOpen} onClose={closeAcademy} />
+      <ToastHost />
     </div>
   );
 }

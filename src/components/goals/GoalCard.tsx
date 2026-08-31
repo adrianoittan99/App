@@ -43,11 +43,13 @@ export function GoalCard({ goal, compact = false }: { goal: Goal; compact?: bool
     setEditing(true);
   }
 
+  const targetInvalid = !(parseFloat(draftTarget) > 0);
+
   function saveEdit() {
-    if (!draftName.trim()) return;
+    if (!draftName.trim() || targetInvalid) return;
     updateGoal(goal.id, {
       name: draftName.trim(),
-      target: Math.max(0, parseFloat(draftTarget) || 0),
+      target: parseFloat(draftTarget),
       saved: Math.max(0, parseFloat(draftSaved) || 0),
       targetDate: draftDate ? new Date(draftDate).toISOString() : goal.targetDate,
     });
@@ -119,13 +121,16 @@ export function GoalCard({ goal, compact = false }: { goal: Goal; compact?: bool
               <label className="text-[10px] text-[var(--text-muted)] mb-0.5 block">Target amount</label>
               <input
                 type="number"
-                min="0"
+                min="1"
                 value={draftTarget}
                 onChange={(e) => setDraftTarget(e.target.value)}
-                className="w-full rounded-lg bg-[var(--surface-2)] border border-[var(--border)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--violet)] tabular"
+                className={`w-full rounded-lg bg-[var(--surface-2)] border px-2.5 py-1.5 text-sm outline-none focus:border-[var(--violet)] tabular ${
+                  targetInvalid ? "border-[var(--red)]" : "border-[var(--border)]"
+                }`}
               />
             </div>
           </div>
+          {targetInvalid && <p className="text-[11px] text-[var(--red)]">Target must be more than $0.</p>}
           <div>
             <label className="text-[10px] text-[var(--text-muted)] mb-0.5 block">Target date</label>
             <input
@@ -136,7 +141,7 @@ export function GoalCard({ goal, compact = false }: { goal: Goal; compact?: bool
             />
           </div>
           <div className="flex items-center gap-2">
-            <Button size="sm" onClick={saveEdit}>
+            <Button size="sm" onClick={saveEdit} disabled={targetInvalid || !draftName.trim()}>
               Save
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>

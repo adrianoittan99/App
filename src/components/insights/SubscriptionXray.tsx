@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { useAppStore } from "../../lib/store";
 import { detectRecurring } from "../../lib/calculations";
 import { CATEGORIES } from "../../lib/categories";
@@ -14,6 +15,7 @@ export function SubscriptionXray() {
   const canceled = useAppStore((s) => s.canceledSubscriptions);
   const cancelSubscription = useAppStore((s) => s.cancelSubscription);
   const reinstateSubscription = useAppStore((s) => s.reinstateSubscription);
+  const navigate = useNavigate();
 
   const subs = detectRecurring(transactions).map((s) => ({ ...s, canceled: canceled.includes(s.key) }));
   const active = subs.filter((s) => !s.canceled);
@@ -74,7 +76,12 @@ export function SubscriptionXray() {
                     {cat.icon}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className={`text-sm font-medium truncate ${s.canceled ? "line-through text-[var(--text-faint)]" : ""}`}>{s.merchant}</p>
+                    <button
+                      onClick={() => navigate(`/app/transactions?merchant=${encodeURIComponent(s.merchant)}`)}
+                      className={`text-sm font-medium truncate hover:text-[var(--violet)] hover:underline block ${s.canceled ? "line-through text-[var(--text-faint)]" : ""}`}
+                    >
+                      {s.merchant}
+                    </button>
                     <p className="text-xs text-[var(--text-muted)]">Last charged {formatFullDate(s.lastDate)} · {s.occurrences}× seen</p>
                   </div>
                   <div className="text-right shrink-0 mr-1">

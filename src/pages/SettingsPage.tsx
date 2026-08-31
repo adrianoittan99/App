@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "../lib/store";
 import { useAuth } from "../lib/authContext";
+import { supabase } from "../lib/supabaseClient";
+import { notifyError, useToastStore } from "../lib/toastStore";
 import { Button } from "../components/ui/Button";
 import { Card, CardHeader } from "../components/ui/Card";
+import { PasswordInput } from "../components/ui/PasswordInput";
 
 export function SettingsPage() {
   const theme = useAppStore((s) => s.theme);
@@ -13,12 +16,67 @@ export function SettingsPage() {
   const resetDemoData = useAppStore((s) => s.resetDemoData);
   const clearAllTransactions = useAppStore((s) => s.clearAllTransactions);
   const startOverRemoteAccount = useAppStore((s) => s.startOverRemoteAccount);
-  const { session, signOut } = useAuth();
+  const { session, signOut, updatePassword } = useAuth();
   const navigate = useNavigate();
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmClearTxns, setConfirmClearTxns] = useState(false);
   const [confirmStartOver, setConfirmStartOver] = useState(false);
   const [startingOver, setStartingOver] = useState(false);
+
+  const [displayName, setDisplayName] = useState("");
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [savingPassword, setSavingPassword] = useState(false);
+
+  useEffect(() => {
+    if (!remoteMode || !session) return;
+    supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", session.user.id)
+      .single()
+      .then(({ data, error }) => {
+        if (error) return;
+        setDisplayName(data?.display_name ?? "");
+      });
+  }, [remoteMode, session]);
+
+  async function saveDisplayName() {
+    if (!session) return;
+    const trimmed = nameDraft.trim();
+    setDisplayName(trimmed);
+    setEditingName(false);
+    const { error } = await supabase.from("profiles").update({ display_name: trimmed || null }).eq("id", session.user.id);
+    if (error) notifyError("Couldn't save your name — try again.");
+  }
+
+  async function handleChangePassword() {
+    setPasswordError(null);
+    if (newPassword.length < 8) {
+      setPasswordError("Password must be at least 8 characters.");
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError("Passwords don't match.");
+      return;
+    }
+    setSavingPassword(true);
+    const result = await updatePassword(newPassword);
+    setSavingPassword(false);
+    if (result) {
+      setPasswordError(result);
+      return;
+    }
+    setChangingPassword(false);
+    setNewPassword("");
+    setConfirmNewPassword("");
+    useToastStore.getState().push({ message: "Password updated.", tone: "success" });
+  }
 
   async function handleStartOver() {
     setStartingOver(true);
@@ -57,14 +115,63 @@ export function SettingsPage() {
       {remoteMode && session && (
         <Card>
           <CardHeader title="Account" subtitle="Signed in — your data syncs to your Aurora account" />
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">{session.user.email}</p>
-              <p className="text-xs text-[var(--text-muted)] mt-0.5">Synced across devices, saved in the cloud</p>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">{session.user.email}</p>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">Synced across devices, saved in the cloud</p>
+              </div>
+              <Button variant="danger" size="sm" className="shrink-0" onClick={handleSignOut}>
+                Sign out
+              </Button>
             </div>
-            <Button variant="danger" size="sm" onClick={handleSignOut}>
-              Sign out
-            </Button>
+
+            <div className="pt-3 border-t border-[var(--border)]">
+              <p className="text-xs text-[var(--text-muted)] mb-1.5">Display name</p>
+              {editingName ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    autoFocus
+                    value={nameDraft}
+                    onChange={(e) => setNameDraft(e.target.value)}
+                    placeholder="Your name"
+                    onKeyDown={(e) => e.key === "Enter" && saveDisplayName()}
+                    className="flex-1 rounded-lg bg-[var(--surface-2)] border border-[var(--border)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--violet)]"
+                  />
+                  <Button size="sm" onClick={saveDisplayName}>Save</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditingName(false)}>Cancel</Button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setNameDraft(displayName); setEditingName(true); }}
+                  className="text-sm font-medium hover:text-[var(--violet)] underline decoration-dotted decoration-[var(--text-faint)]"
+                >
+                  {displayName || "Add your name →"}
+                </button>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-[var(--border)]">
+              {changingPassword ? (
+                <div className="space-y-2.5">
+                  <PasswordInput value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password — at least 8 characters" />
+                  <PasswordInput value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} placeholder="Confirm new password" />
+                  {passwordError && <p className="text-xs text-[var(--red)]">{passwordError}</p>}
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" onClick={handleChangePassword} disabled={savingPassword}>
+                      {savingPassword ? "Saving…" : "Save new password"}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => { setChangingPassword(false); setPasswordError(null); setNewPassword(""); setConfirmNewPassword(""); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => setChangingPassword(true)} className="text-sm font-medium text-[var(--violet)] hover:underline">
+                  Change password →
+                </button>
+              )}
+            </div>
           </div>
         </Card>
       )}

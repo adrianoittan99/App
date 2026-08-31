@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer, Tooltip } from "recharts";
 import { useAppStore } from "../../lib/store";
 import { lastNMonthKeys, summarizeMonth } from "../../lib/calculations";
@@ -10,6 +11,7 @@ import { InfoTip } from "../ui/InfoTip";
 export function SpendingDNA() {
   const transactions = useAppStore((s) => s.transactions);
   const theme = useAppStore((s) => s.theme);
+  const navigate = useNavigate();
 
   const { radarData, code, total } = useMemo(() => {
     const months = lastNMonthKeys(3);
@@ -94,13 +96,21 @@ export function SpendingDNA() {
               .slice()
               .sort((a, b) => b.amount - a.amount)
               .slice(0, 6)
-              .map((r) => (
-                <div key={r.category} className="flex items-center gap-2 text-xs">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: r.category === "other" ? (theme === "dark" ? CHART_OTHER.dark : CHART_OTHER.light) : chartColorFor(r.category, theme) }} />
-                  <span className="flex-1 text-[var(--text-muted)] truncate">{r.label}</span>
-                  <span className="tabular font-medium">{formatPercent(r.pct)}</span>
-                </div>
-              ))}
+              .map((r) => {
+                const clickable = r.category !== "other";
+                return (
+                  <button
+                    key={r.category}
+                    disabled={!clickable}
+                    onClick={() => clickable && navigate(`/app/transactions?category=${r.category}`)}
+                    className={`flex items-center gap-2 text-xs w-full text-left ${clickable ? "hover:text-[var(--violet)] group" : ""}`}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: r.category === "other" ? (theme === "dark" ? CHART_OTHER.dark : CHART_OTHER.light) : chartColorFor(r.category, theme) }} />
+                    <span className="flex-1 text-[var(--text-muted)] truncate group-hover:text-[var(--violet)]">{r.label}</span>
+                    <span className="tabular font-medium">{formatPercent(r.pct)}</span>
+                  </button>
+                );
+              })}
           </div>
           <p className="text-[11px] text-[var(--text-faint)] mt-3">Based on {formatCurrency(total)} in tracked spend</p>
         </div>

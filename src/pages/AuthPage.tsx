@@ -3,9 +3,10 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../lib/authContext";
 import { Button } from "../components/ui/Button";
+import { PasswordInput } from "../components/ui/PasswordInput";
 
 export function AuthPage() {
-  const { session, loading, signInWithEmail, signUpWithEmail, sendPasswordReset } = useAuth();
+  const { session, loading, signInWithEmail, signUpWithEmail, sendPasswordReset, resendConfirmation } = useAuth();
   const navigate = useNavigate();
 
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
@@ -17,9 +18,16 @@ export function AuthPage() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmSent, setConfirmSent] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
 
   if (!loading && session) {
     return <Navigate to="/app" replace />;
+  }
+
+  async function handleResend() {
+    setResendState("sending");
+    await resendConfirmation(email);
+    setResendState("sent");
   }
 
   async function handleForgotSubmit(e: React.FormEvent) {
@@ -104,7 +112,23 @@ export function AuthPage() {
               We sent a confirmation link to <span className="text-[var(--text)]">{email}</span>. Click it, then come back and
               sign in.
             </p>
-            <Button variant="secondary" size="sm" className="mt-5" onClick={() => { setConfirmSent(false); setMode("signin"); }}>
+            <p className="text-xs text-[var(--text-faint)] mt-3">
+              {resendState === "sent" ? (
+                "Sent again — check your inbox (and spam folder)."
+              ) : (
+                <>
+                  Didn't get it?{" "}
+                  <button
+                    onClick={handleResend}
+                    disabled={resendState === "sending"}
+                    className="text-[var(--violet)] hover:underline disabled:opacity-50"
+                  >
+                    {resendState === "sending" ? "Sending…" : "Resend the email"}
+                  </button>
+                </>
+              )}
+            </p>
+            <Button variant="secondary" size="sm" className="mt-5" onClick={() => { setConfirmSent(false); setMode("signin"); setResendState("idle"); }}>
               Back to sign in
             </Button>
           </div>
@@ -227,25 +251,17 @@ export function AuthPage() {
                     </button>
                   )}
                 </div>
-                <input
-                  type="password"
+                <PasswordInput
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={mode === "signup" ? "At least 8 characters" : "••••••••"}
-                  className="w-full rounded-xl bg-[var(--surface-2)] border border-[var(--border)] px-3.5 py-2.5 text-sm outline-none focus:border-[var(--violet)]"
                   required
                 />
               </div>
               {mode === "signup" && (
                 <div>
                   <label className="text-xs text-[var(--text-muted)] mb-1 block">Confirm password</label>
-                  <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full rounded-xl bg-[var(--surface-2)] border border-[var(--border)] px-3.5 py-2.5 text-sm outline-none focus:border-[var(--violet)]"
-                    required
-                  />
+                  <PasswordInput value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
                 </div>
               )}
 

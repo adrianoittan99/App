@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../lib/authContext";
 import { Button } from "../components/ui/Button";
+import { PasswordInput } from "../components/ui/PasswordInput";
 
 /**
  * Landing spot for the link Supabase emails from "Forgot password?". Supabase
@@ -99,24 +100,11 @@ export function ResetPasswordPage() {
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
                 <label className="text-xs text-[var(--text-muted)] mb-1 block">New password</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 8 characters"
-                  className="w-full rounded-xl bg-[var(--surface-2)] border border-[var(--border)] px-3.5 py-2.5 text-sm outline-none focus:border-[var(--violet)]"
-                  required
-                />
+                <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" required />
               </div>
               <div>
                 <label className="text-xs text-[var(--text-muted)] mb-1 block">Confirm new password</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full rounded-xl bg-[var(--surface-2)] border border-[var(--border)] px-3.5 py-2.5 text-sm outline-none focus:border-[var(--violet)]"
-                  required
-                />
+                <PasswordInput value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
               </div>
               {error && <p className="text-xs text-[var(--red)]">{error}</p>}
               <Button type="submit" size="lg" className="w-full mt-2" disabled={submitting}>

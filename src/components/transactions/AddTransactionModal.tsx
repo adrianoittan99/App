@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import type { CategoryId } from "../../lib/types";
+import type { CategoryId, Transaction } from "../../lib/types";
 import { CATEGORY_LIST } from "../../lib/categories";
 import { useAppStore } from "../../lib/store";
 import { Button } from "../ui/Button";
@@ -8,11 +8,16 @@ import { Button } from "../ui/Button";
 interface Props {
   open: boolean;
   onClose: () => void;
+  /** When set, the modal edits this transaction instead of creating a new one. */
+  transaction?: Transaction;
 }
 
-export function AddTransactionModal({ open, onClose }: Props) {
+export function AddTransactionModal({ open, onClose, transaction }: Props) {
   const addTransaction = useAppStore((s) => s.addTransaction);
+  const updateTransaction = useAppStore((s) => s.updateTransaction);
   const accounts = useAppStore((s) => s.accounts);
+  const isEdit = Boolean(transaction);
+
   const [merchant, setMerchant] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState<CategoryId>("dining");
@@ -20,26 +25,43 @@ export function AddTransactionModal({ open, onClose }: Props) {
   const [account, setAccount] = useState(accounts[0]?.name ?? "Everyday Checking");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
 
-  function reset() {
-    setMerchant("");
-    setAmount("");
-    setCategory("dining");
-    setKind("expense");
-    setDate(new Date().toISOString().slice(0, 10));
-  }
+  // Reset (new) or prefill (edit) whenever the modal opens.
+  useEffect(() => {
+    if (!open) return;
+    if (transaction) {
+      setMerchant(transaction.merchant);
+      setAmount(String(Math.abs(transaction.amount)));
+      setKind(transaction.amount >= 0 ? "income" : "expense");
+      setCategory(transaction.category === "income" ? "dining" : transaction.category);
+      setAccount(transaction.account);
+      setDate(transaction.date);
+    } else {
+      setMerchant("");
+      setAmount("");
+      setCategory("dining");
+      setKind("expense");
+      setAccount(accounts[0]?.name ?? "Everyday Checking");
+      setDate(new Date().toISOString().slice(0, 10));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, transaction?.id]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const numeric = parseFloat(amount);
     if (!merchant.trim() || Number.isNaN(numeric) || numeric <= 0) return;
-    addTransaction({
+    const payload = {
       merchant: merchant.trim(),
       amount: kind === "expense" ? -numeric : numeric,
-      category: kind === "income" ? "income" : category,
+      category: kind === "income" ? ("income" as const) : category,
       account,
       date,
-    });
-    reset();
+    };
+    if (isEdit && transaction) {
+      updateTransaction(transaction.id, payload);
+    } else {
+      addTransaction(payload);
+    }
     onClose();
   }
 
@@ -68,7 +90,7 @@ export function AddTransactionModal({ open, onClose }: Props) {
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] as const }}
           >
             <div className="flex items-center justify-between mb-5">
-              <h3 className="font-display font-semibold text-lg">Add transaction</h3>
+              <h3 className="font-display font-semibold text-lg">{isEdit ? "Edit transaction" : "Add transaction"}</h3>
               <button type="button" onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[var(--surface-2)]" aria-label="Close">
                 ✕
               </button>
@@ -164,7 +186,7 @@ export function AddTransactionModal({ open, onClose }: Props) {
             </div>
 
             <Button type="submit" className="w-full mt-5" size="lg">
-              Save transaction
+              {isEdit ? "Save changes" : "Save transaction"}
             </Button>
           </motion.form>
         </motion.div>

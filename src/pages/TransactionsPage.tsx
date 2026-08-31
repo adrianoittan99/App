@@ -3,37 +3,57 @@ import { useSearchParams } from "react-router-dom";
 import { useAppStore } from "../lib/store";
 import { CATEGORIES, CATEGORY_LIST } from "../lib/categories";
 import { formatCurrency, formatFullDate } from "../lib/format";
-import type { CategoryId } from "../lib/types";
+import type { CategoryId, Transaction } from "../lib/types";
+import { AddTransactionModal } from "../components/transactions/AddTransactionModal";
 import { Button } from "../components/ui/Button";
 
 export function TransactionsPage() {
   const transactions = useAppStore((s) => s.transactions);
   const deleteTransaction = useAppStore((s) => s.deleteTransaction);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(searchParams.get("merchant") ?? "");
   const [category, setCategory] = useState<CategoryId | "all">((searchParams.get("category") as CategoryId | null) ?? "all");
   const [visibleCount, setVisibleCount] = useState(100);
+  const [editingTxn, setEditingTxn] = useState<Transaction | null>(null);
 
-  // Arriving from "View activity" on an envelope (a new ?category= in the
-  // URL while this page stays mounted) should update the filter too.
+  // Arriving from "View activity" on an envelope, or a subscription/DNA
+  // category, means a new ?category=/?merchant= while this page stays
+  // mounted — pick that up too.
   useEffect(() => {
-    const fromUrl = searchParams.get("category") as CategoryId | null;
-    if (fromUrl && fromUrl !== category) {
-      setCategory(fromUrl);
+    const fromCategory = searchParams.get("category") as CategoryId | null;
+    const fromMerchant = searchParams.get("merchant");
+    if (fromCategory && fromCategory !== category) {
+      setCategory(fromCategory);
+      setVisibleCount(100);
+    }
+    if (fromMerchant && fromMerchant !== query) {
+      setQuery(fromMerchant);
       setVisibleCount(100);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   const filtered = useMemo(() => {
-    return transactions.filter((t) => {
-      const matchesQuery = t.merchant.toLowerCase().includes(query.toLowerCase());
-      const matchesCategory = category === "all" || t.category === category;
-      return matchesQuery && matchesCategory;
-    });
+    // The store already keeps transactions date-sorted, but this list can be
+    // built from filters alone — sort defensively so display order never
+    // depends on remembering to sort at every mutation site.
+    return [...transactions]
+      .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+      .filter((t) => {
+        const matchesQuery = t.merchant.toLowerCase().includes(query.toLowerCase());
+        const matchesCategory = category === "all" || t.category === category;
+        return matchesQuery && matchesCategory;
+      });
   }, [transactions, query, category]);
 
   const visible = filtered.slice(0, visibleCount);
+  const activeCategory = category !== "all" ? CATEGORIES[category] : null;
+
+  function clearFilters() {
+    setQuery("");
+    setCategory("all");
+    setSearchParams({});
+  }
 
   return (
     <div className="space-y-6">
@@ -43,10 +63,18 @@ export function TransactionsPage() {
           <span>
             {transactions.length} total · {visible.length} of {filtered.length} shown
           </span>
-          {category !== "all" && (
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full" style={{ background: `color-mix(in srgb, ${CATEGORIES[category].color} 16%, transparent)`, color: CATEGORIES[category].color }}>
-              {CATEGORIES[category].icon} {CATEGORIES[category].label} only
+          {activeCategory && (
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full" style={{ background: `color-mix(in srgb, ${activeCategory.color} 16%, transparent)`, color: activeCategory.color }}>
+              {activeCategory.icon} {activeCategory.label} only
               <button onClick={() => { setCategory("all"); setSearchParams({}); }} className="hover:opacity-70" aria-label="Clear category filter">
+                ✕
+              </button>
+            </span>
+          )}
+          {!activeCategory && query && (
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-[var(--surface-2)] text-[var(--text-muted)]">
+              "{query}" only
+              <button onClick={() => { setQuery(""); setSearchParams({}); }} className="hover:opacity-70" aria-label="Clear search filter">
                 ✕
               </button>
             </span>
@@ -113,7 +141,10 @@ export function TransactionsPage() {
                       {positive ? "+" : "−"}
                       {formatCurrency(Math.abs(t.amount), true)}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <button onClick={() => setEditingTxn(t)} className="text-xs font-medium text-[var(--violet)]/80 hover:text-[var(--violet)] hover:underline mr-3">
+                        Edit
+                      </button>
                       <button
                         onClick={() => deleteTransaction(t.id)}
                         className="text-xs font-medium text-[var(--red)]/70 hover:text-[var(--red)] hover:underline"
@@ -138,13 +169,15 @@ export function TransactionsPage() {
           <div className="p-10 text-center text-sm text-[var(--text-muted)]">
             No transactions match your filters.
             <div className="mt-3">
-              <Button size="sm" variant="secondary" onClick={() => { setQuery(""); setCategory("all"); setSearchParams({}); }}>
+              <Button size="sm" variant="secondary" onClick={clearFilters}>
                 Clear filters
               </Button>
             </div>
           </div>
         )}
       </div>
+
+      <AddTransactionModal open={Boolean(editingTxn)} transaction={editingTxn ?? undefined} onClose={() => setEditingTxn(null)} />
     </div>
   );
 }

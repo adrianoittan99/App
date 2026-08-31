@@ -2,11 +2,14 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Account, CategoryId, Envelope, Goal, RemoteHydratePayload, ThemeMode, Transaction } from "./types";
 import { generateAccounts, generateEnvelopes, generateGoals, generateTransactions } from "./seedData";
+import { sortTransactions } from "./calculations";
 import { supabase } from "./supabaseClient";
 import type { Database } from "./database.types";
+import { notifyError, notifyUndo } from "./toastStore";
 
 type AccountUpdate = Database["public"]["Tables"]["accounts"]["Update"];
 type GoalUpdate = Database["public"]["Tables"]["goals"]["Update"];
+type TransactionUpdate = Database["public"]["Tables"]["transactions"]["Update"];
 
 interface AppState {
   transactions: Transaction[];
@@ -30,6 +33,7 @@ interface AppState {
   addTransactionModalOpen: boolean;
 
   addTransaction: (t: Omit<Transaction, "id">) => Promise<void>;
+  updateTransaction: (id: string, patch: Partial<Omit<Transaction, "id">>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   updateEnvelopeLimit: (categoryId: CategoryId, limit: number) => Promise<void>;
   createAccount: (account: Omit<Account, "id">) => Promise<void>;
@@ -97,11 +101,11 @@ export const useAppStore = create<AppState>()(
             .select()
             .single();
           if (error || !data) {
-            console.error("Failed to save transaction", error);
+            notifyError("Couldn't save that transaction — try again.");
             return;
           }
           set((s) => ({
-            transactions: [
+            transactions: sortTransactions([
               {
                 id: data.id,
                 date: data.date,
@@ -112,19 +116,63 @@ export const useAppStore = create<AppState>()(
                 note: data.note ?? undefined,
               },
               ...s.transactions,
-            ],
+            ]),
             accounts: account ? s.accounts.map((a) => (a.id === account.id ? { ...a, balance: a.balance + t.amount } : a)) : s.accounts,
           }));
           if (account) {
-            await supabase.from("accounts").update({ balance: account.balance + t.amount }).eq("id", account.id);
+            const { error: balErr } = await supabase.from("accounts").update({ balance: account.balance + t.amount }).eq("id", account.id);
+            if (balErr) notifyError("Transaction saved, but the account balance didn't sync — check Balances.");
           }
           return;
         }
 
         set((s) => ({
-          transactions: [{ ...t, id: `txn_${Date.now().toString(36)}` }, ...s.transactions],
+          transactions: sortTransactions([{ ...t, id: `txn_${Date.now().toString(36)}` }, ...s.transactions]),
           accounts: account ? s.accounts.map((a) => (a.id === account.id ? { ...a, balance: a.balance + t.amount } : a)) : s.accounts,
         }));
+      },
+
+      updateTransaction: async (id, patch) => {
+        const state = get();
+        const old = state.transactions.find((t) => t.id === id);
+        if (!old) return;
+        const merged = { ...old, ...patch };
+        const oldAccount = state.accounts.find((a) => a.name === old.account);
+        const newAccount = state.accounts.find((a) => a.name === merged.account);
+
+        const nextAccounts = state.accounts.map((a) => {
+          let balance = a.balance;
+          if (oldAccount && a.id === oldAccount.id) balance -= old.amount;
+          if (newAccount && a.id === newAccount.id) balance += merged.amount;
+          return { ...a, balance };
+        });
+
+        set({
+          transactions: sortTransactions(state.transactions.map((t) => (t.id === id ? merged : t))),
+          accounts: nextAccounts,
+        });
+
+        if (state.remoteMode && state.remoteUserId) {
+          const dbPatch: TransactionUpdate = {
+            account_id: newAccount?.id ?? null,
+            date: merged.date,
+            merchant: merged.merchant,
+            category: merged.category,
+            amount: merged.amount,
+            note: merged.note ?? null,
+          };
+          const { error } = await supabase.from("transactions").update(dbPatch).eq("id", id);
+          if (error) notifyError("Couldn't save your changes to this transaction.");
+
+          const touched = new Set([oldAccount?.id, newAccount?.id].filter((v): v is string => Boolean(v)));
+          for (const acctId of touched) {
+            const acct = nextAccounts.find((a) => a.id === acctId);
+            if (acct) {
+              const { error: balErr } = await supabase.from("accounts").update({ balance: acct.balance }).eq("id", acctId);
+              if (balErr) notifyError("Couldn't sync the account balance — check Balances.");
+            }
+          }
+        }
       },
 
       deleteTransaction: async (id) => {
@@ -139,11 +187,19 @@ export const useAppStore = create<AppState>()(
         }));
 
         if (state.remoteMode && state.remoteUserId) {
-          await supabase.from("transactions").delete().eq("id", id);
+          const { error } = await supabase.from("transactions").delete().eq("id", id);
+          if (error) notifyError("Couldn't delete that transaction — try again.");
           if (account) {
-            await supabase.from("accounts").update({ balance: account.balance - txn.amount }).eq("id", account.id);
+            const { error: balErr } = await supabase.from("accounts").update({ balance: account.balance - txn.amount }).eq("id", account.id);
+            if (balErr) notifyError("Deleted, but the account balance didn't sync — check Balances.");
           }
         }
+
+        const { id: _discardId, ...withoutId } = txn;
+        void _discardId;
+        notifyUndo(`Deleted "${txn.merchant}"`, () => {
+          void get().addTransaction(withoutId);
+        });
       },
 
       updateEnvelopeLimit: async (categoryId, limit) => {
@@ -153,11 +209,12 @@ export const useAppStore = create<AppState>()(
         }));
         const state = get();
         if (state.remoteMode && state.remoteUserId) {
-          await supabase
+          const { error } = await supabase
             .from("envelopes")
             .update({ monthly_limit: clamped })
             .eq("user_id", state.remoteUserId)
             .eq("category", categoryId);
+          if (error) notifyError("Couldn't save that envelope limit.");
         }
       },
 
@@ -178,7 +235,7 @@ export const useAppStore = create<AppState>()(
             .select()
             .single();
           if (error || !data) {
-            console.error("Failed to create account", error);
+            notifyError("Couldn't add that account — try again.");
             return;
           }
           set((s) => ({
@@ -213,16 +270,27 @@ export const useAppStore = create<AppState>()(
           if (patch.apr !== undefined) dbPatch.apr = patch.apr ?? null;
           if (patch.minimumPayment !== undefined) dbPatch.minimum_payment = patch.minimumPayment ?? null;
           if (patch.dueDay !== undefined) dbPatch.due_day = patch.dueDay ?? null;
-          await supabase.from("accounts").update(dbPatch).eq("id", accountId);
+          const { error } = await supabase.from("accounts").update(dbPatch).eq("id", accountId);
+          if (error) notifyError("Couldn't save that account change.");
         }
       },
 
       deleteAccount: async (accountId) => {
-        set((s) => ({ accounts: s.accounts.filter((a) => a.id !== accountId) }));
         const state = get();
+        const account = state.accounts.find((a) => a.id === accountId);
+        if (!account) return;
+
+        set((s) => ({ accounts: s.accounts.filter((a) => a.id !== accountId) }));
         if (state.remoteMode && state.remoteUserId) {
-          await supabase.from("accounts").delete().eq("id", accountId);
+          const { error } = await supabase.from("accounts").delete().eq("id", accountId);
+          if (error) notifyError("Couldn't delete that account — try again.");
         }
+
+        const { id: _discardId, ...withoutId } = account;
+        void _discardId;
+        notifyUndo(`Removed "${account.name}"`, () => {
+          void get().createAccount(withoutId);
+        });
       },
 
       addGoalContribution: async (goalId, amount) => {
@@ -232,7 +300,10 @@ export const useAppStore = create<AppState>()(
         const state = get();
         if (state.remoteMode) {
           const goal = state.goals.find((g) => g.id === goalId);
-          if (goal) await supabase.from("goals").update({ saved: goal.saved }).eq("id", goalId);
+          if (goal) {
+            const { error } = await supabase.from("goals").update({ saved: goal.saved }).eq("id", goalId);
+            if (error) notifyError("Couldn't save that contribution.");
+          }
         }
       },
 
@@ -253,7 +324,7 @@ export const useAppStore = create<AppState>()(
             .select()
             .single();
           if (error || !data) {
-            console.error("Failed to create goal", error);
+            notifyError("Couldn't create that goal — try again.");
             return;
           }
           set((s) => ({
@@ -288,16 +359,27 @@ export const useAppStore = create<AppState>()(
           if (patch.target !== undefined) dbPatch.target = patch.target;
           if (patch.saved !== undefined) dbPatch.saved = patch.saved;
           if (patch.targetDate !== undefined) dbPatch.target_date = patch.targetDate || null;
-          await supabase.from("goals").update(dbPatch).eq("id", goalId);
+          const { error } = await supabase.from("goals").update(dbPatch).eq("id", goalId);
+          if (error) notifyError("Couldn't save that goal's changes.");
         }
       },
 
       deleteGoal: async (goalId) => {
-        set((s) => ({ goals: s.goals.filter((g) => g.id !== goalId) }));
         const state = get();
+        const goal = state.goals.find((g) => g.id === goalId);
+        if (!goal) return;
+
+        set((s) => ({ goals: s.goals.filter((g) => g.id !== goalId) }));
         if (state.remoteMode && state.remoteUserId) {
-          await supabase.from("goals").delete().eq("id", goalId);
+          const { error } = await supabase.from("goals").delete().eq("id", goalId);
+          if (error) notifyError("Couldn't delete that goal — try again.");
         }
+
+        const { id: _discardId, ...withoutId } = goal;
+        void _discardId;
+        notifyUndo(`Deleted "${goal.name}"`, () => {
+          void get().createGoal(withoutId);
+        });
       },
 
       toggleTheme: () => get().setTheme(get().theme === "dark" ? "light" : "dark"),
@@ -306,7 +388,13 @@ export const useAppStore = create<AppState>()(
         set({ theme: mode });
         const state = get();
         if (state.remoteMode && state.remoteUserId) {
-          void supabase.from("profiles").update({ theme: mode }).eq("id", state.remoteUserId);
+          void supabase
+            .from("profiles")
+            .update({ theme: mode })
+            .eq("id", state.remoteUserId)
+            .then(({ error }) => {
+              if (error) notifyError("Theme didn't sync to your account, but it's applied here.");
+            });
         }
       },
 
@@ -314,9 +402,10 @@ export const useAppStore = create<AppState>()(
         set((s) => ({ canceledSubscriptions: Array.from(new Set([...s.canceledSubscriptions, merchantKey])) }));
         const state = get();
         if (state.remoteMode && state.remoteUserId) {
-          await supabase
+          const { error } = await supabase
             .from("canceled_subscriptions")
             .upsert({ user_id: state.remoteUserId, merchant_key: merchantKey }, { onConflict: "user_id,merchant_key" });
+          if (error) notifyError("Couldn't save that cancellation.");
         }
       },
 
@@ -324,11 +413,12 @@ export const useAppStore = create<AppState>()(
         set((s) => ({ canceledSubscriptions: s.canceledSubscriptions.filter((k) => k !== merchantKey) }));
         const state = get();
         if (state.remoteMode && state.remoteUserId) {
-          await supabase
+          const { error } = await supabase
             .from("canceled_subscriptions")
             .delete()
             .eq("user_id", state.remoteUserId)
             .eq("merchant_key", merchantKey);
+          if (error) notifyError("Couldn't undo that cancellation.");
         }
       },
 
@@ -338,7 +428,7 @@ export const useAppStore = create<AppState>()(
 
       hydrateFromRemote: (payload, userId) =>
         set({
-          transactions: payload.transactions,
+          transactions: sortTransactions(payload.transactions),
           accounts: payload.accounts,
           envelopes: payload.envelopes,
           goals: payload.goals,
@@ -360,10 +450,11 @@ export const useAppStore = create<AppState>()(
         const state = get();
         set((s) => ({ transactions: [], accounts: s.accounts.map((a) => ({ ...a, balance: 0 })) }));
         if (state.remoteMode && state.remoteUserId) {
-          await Promise.all([
+          const [txnRes, acctRes] = await Promise.all([
             supabase.from("transactions").delete().eq("user_id", state.remoteUserId),
             supabase.from("accounts").update({ balance: 0 }).eq("user_id", state.remoteUserId),
           ]);
+          if (txnRes.error || acctRes.error) notifyError("Some of that may not have saved — refresh to double-check.");
         }
       },
 
@@ -371,14 +462,17 @@ export const useAppStore = create<AppState>()(
         const state = get();
         if (!state.remoteMode || !state.remoteUserId) return;
         const uid = state.remoteUserId;
-        await Promise.all([
+        const results = await Promise.all([
           supabase.from("transactions").delete().eq("user_id", uid),
           supabase.from("envelopes").delete().eq("user_id", uid),
           supabase.from("goals").delete().eq("user_id", uid),
           supabase.from("canceled_subscriptions").delete().eq("user_id", uid),
           supabase.from("accounts").delete().eq("user_id", uid),
         ]);
-        await supabase.from("profiles").update({ onboarding_completed: false }).eq("id", uid);
+        const profileRes = await supabase.from("profiles").update({ onboarding_completed: false }).eq("id", uid);
+        if (results.some((r) => r.error) || profileRes.error) {
+          notifyError("Some of that may not have fully cleared — refresh and check before re-onboarding.");
+        }
         set({ transactions: [], accounts: [], envelopes: [], goals: [], canceledSubscriptions: [] });
       },
     }),
